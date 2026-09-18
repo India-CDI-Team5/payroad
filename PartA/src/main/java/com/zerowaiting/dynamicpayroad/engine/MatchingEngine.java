@@ -37,8 +37,11 @@ public class MatchingEngine {
     }
 
     public Outcome evaluate(User user, Collection<User> onlineUsers, Collection<Driver> waitingDrivers) {
-        Location origin = user.getLocation();
+        return evaluateAt(user.getLocation(), onlineUsers, waitingDrivers);
+    }
 
+    /** Same local demand/supply/surge computation, but around an arbitrary point rather than a requesting user. */
+    public Outcome evaluateAt(Location origin, Collection<User> onlineUsers, Collection<Driver> waitingDrivers) {
         // Demand = online users within radius (the requester counts too).
         int demand = 0;
         for (User u : onlineUsers) {
