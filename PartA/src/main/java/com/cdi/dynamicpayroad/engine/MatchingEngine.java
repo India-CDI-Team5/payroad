@@ -1,8 +1,8 @@
-package com.zerowaiting.dynamicpayroad.engine;
+package com.cdi.dynamicpayroad.engine;
 
-import com.zerowaiting.dynamicpayroad.model.Driver;
-import com.zerowaiting.dynamicpayroad.model.Location;
-import com.zerowaiting.dynamicpayroad.model.User;
+import com.cdi.dynamicpayroad.model.Driver;
+import com.cdi.dynamicpayroad.model.Location;
+import com.cdi.dynamicpayroad.model.User;
 import org.springframework.stereotype.Component;
 
 import java.util.Collection;
@@ -37,8 +37,11 @@ public class MatchingEngine {
     }
 
     public Outcome evaluate(User user, Collection<User> onlineUsers, Collection<Driver> waitingDrivers) {
-        Location origin = user.getLocation();
+        return evaluateAt(user.getLocation(), onlineUsers, waitingDrivers);
+    }
 
+    /** Same local demand/supply/surge computation, but around an arbitrary point rather than a requesting user. */
+    public Outcome evaluateAt(Location origin, Collection<User> onlineUsers, Collection<Driver> waitingDrivers) {
         // Demand = online users within radius (the requester counts too).
         int demand = 0;
         for (User u : onlineUsers) {

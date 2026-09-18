@@ -1,4 +1,4 @@
-package com.zerowaiting.dynamicpayroad.model;
+package com.cdi.dynamicpayroad.model;
 
 import jakarta.persistence.Embeddable;
 
