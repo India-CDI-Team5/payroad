@@ -1,6 +1,6 @@
-package com.zerowaiting.dynamicpayroad.repository;
+package com.cdi.dynamicpayroad.repository;
 
-import com.zerowaiting.dynamicpayroad.model.User;
+import com.cdi.dynamicpayroad.model.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

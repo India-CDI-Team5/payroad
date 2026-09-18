@@ -1,11 +1,11 @@
-package com.zerowaiting.dynamicpayroad.bootstrap;
+package com.cdi.dynamicpayroad.bootstrap;
 
-import com.zerowaiting.dynamicpayroad.model.Driver;
-import com.zerowaiting.dynamicpayroad.model.Location;
-import com.zerowaiting.dynamicpayroad.model.User;
-import com.zerowaiting.dynamicpayroad.pool.OnlinePool;
-import com.zerowaiting.dynamicpayroad.repository.DriverRepository;
-import com.zerowaiting.dynamicpayroad.repository.UserRepository;
+import com.cdi.dynamicpayroad.model.Driver;
+import com.cdi.dynamicpayroad.model.Location;
+import com.cdi.dynamicpayroad.model.User;
+import com.cdi.dynamicpayroad.pool.OnlinePool;
+import com.cdi.dynamicpayroad.repository.DriverRepository;
+import com.cdi.dynamicpayroad.repository.UserRepository;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;

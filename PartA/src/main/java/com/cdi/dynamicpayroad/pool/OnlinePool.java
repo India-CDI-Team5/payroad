@@ -1,7 +1,7 @@
-package com.zerowaiting.dynamicpayroad.pool;
+package com.cdi.dynamicpayroad.pool;
 
-import com.zerowaiting.dynamicpayroad.model.Driver;
-import com.zerowaiting.dynamicpayroad.model.User;
+import com.cdi.dynamicpayroad.model.Driver;
+import com.cdi.dynamicpayroad.model.User;
 import org.springframework.stereotype.Component;
 
 import java.util.Collection;

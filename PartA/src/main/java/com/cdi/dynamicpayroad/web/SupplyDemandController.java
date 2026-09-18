@@ -1,8 +1,8 @@
-package com.zerowaiting.dynamicpayroad.web;
+package com.cdi.dynamicpayroad.web;
 
-import com.zerowaiting.dynamicpayroad.engine.MatchingEngine;
-import com.zerowaiting.dynamicpayroad.model.Location;
-import com.zerowaiting.dynamicpayroad.pool.OnlinePool;
+import com.cdi.dynamicpayroad.engine.MatchingEngine;
+import com.cdi.dynamicpayroad.model.Location;
+import com.cdi.dynamicpayroad.pool.OnlinePool;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
