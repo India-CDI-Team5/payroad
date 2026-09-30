@@ -25,13 +25,19 @@ WEATHER_TTL_SEC = 10 * 60     # forecasts update often
 cache = Cache(CACHE_DIR)
 
 
-def _key_point(point):
-    # ~11 m precision: nearby requests share a cache entry.
-    return f"{point[0]:.4f},{point[1]:.4f}"
+# Route keys stay precise (~11 m): two different trips must never share a route.
+ROUTE_KEY_DECIMALS = 4
+# Open-Meteo's grid cell is ~7-8 km (docs/weather-grid-resolution.md), so finer keys only
+# lower the hit rate. 2 decimals (~1.1 km) is coarser than the data but safely finer than the cell.
+WEATHER_KEY_DECIMALS = 2
+
+
+def _key_point(point, decimals):
+    return f"{point[0]:.{decimals}f},{point[1]:.{decimals}f}"
 
 
 async def fetch_route(client, start, end, api_key=API_KEY):
-    key = f"route:{_key_point(start)}:{_key_point(end)}"
+    key = f"route:{_key_point(start, ROUTE_KEY_DECIMALS)}:{_key_point(end, ROUTE_KEY_DECIMALS)}"
     cached = cache.get(key)
     if cached is not None:
         return cached
@@ -73,7 +79,7 @@ def sample_route(route_coordinates, sample_count):
 
 
 async def fetch_weather(client, sampled_points):
-    key = "weather:" + "|".join(_key_point(p) for p in sampled_points)
+    key = "weather:" + "|".join(_key_point(p, WEATHER_KEY_DECIMALS) for p in sampled_points)
     cached = cache.get(key)
     if cached is not None:
         return cached
