@@ -1,13 +1,25 @@
-from fastapi import FastAPI, HTTPException
+from contextlib import asynccontextmanager
+
+import httpx
+from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
 import json
 import os
 import xgboost as xgb
 import pandas as pd
 
-from sampler import assess_route_weather
+from sampler import HTTP_TIMEOUT, assess_route_weather
 
-app = FastAPI(title="Route Weather & AI Pricing Service")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # One shared client keeps connections alive across requests.
+    async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
+        app.state.http = client
+        yield
+
+
+app = FastAPI(title="Route Weather & AI Pricing Service", lifespan=lifespan)
 
 # Load XGBoost AI Pricing Model
 MODEL_PATH = "xgb_pricing_model.json"
@@ -43,18 +55,18 @@ def health():
 
 
 @app.post("/route-weather")
-def route_weather(request: RouteWeatherRequest):
+async def route_weather(request: RouteWeatherRequest, http_request: Request):
     start = [request.start.lon, request.start.lat]
     end = [request.end.lon, request.end.lat]
 
     try:
-        return assess_route_weather(start, end)
+        return await assess_route_weather(http_request.app.state.http, start, end)
     except Exception as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
 @app.post("/predict-ml-fare")
-def predict_ml_fare(request: AIPricingRequest):
+async def predict_ml_fare(request: AIPricingRequest, http_request: Request):
     """
     Predicts the optimal fare using the trained XGBoost model.
     Takes demand and supply from Part A, and calculates rain & distance internally.
@@ -67,7 +79,7 @@ def predict_ml_fare(request: AIPricingRequest):
 
     try:
         # 1. Get distance and weather from routing module
-        route_info = assess_route_weather(start, end)
+        route_info = await assess_route_weather(http_request.app.state.http, start, end)
         distance = route_info.get("distance_km", 0.0)
         
         # Calculate average rain across checkpoints

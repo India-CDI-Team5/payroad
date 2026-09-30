@@ -1,7 +1,8 @@
 import argparse
+import asyncio
 import json
 
-import requests
+import httpx
 
 import os
 from dotenv import load_dotenv
@@ -13,9 +14,10 @@ API_KEY = os.environ.get("ORS_API_KEY", "")
 
 ROUTE_URL = "https://api.openrouteservice.org/v2/directions/driving-car/geojson"
 WEATHER_URL = "https://api.open-meteo.com/v1/forecast"
+HTTP_TIMEOUT = httpx.Timeout(10.0)
 
 
-def fetch_route(start, end, api_key=API_KEY):
+async def fetch_route(client, start, end, api_key=API_KEY):
     headers = {
         "Authorization": api_key,
         "Content-Type": "application/json"
@@ -24,7 +26,7 @@ def fetch_route(start, end, api_key=API_KEY):
         "coordinates": [start, end],
         "instructions": False
     }
-    response = requests.post(ROUTE_URL, json=body, headers=headers)
+    response = await client.post(ROUTE_URL, json=body, headers=headers)
     response.raise_for_status()
     return response.json()
 
@@ -50,7 +52,7 @@ def sample_route(route_coordinates, sample_count):
     return sampled_points
 
 
-def fetch_weather(sampled_points):
+async def fetch_weather(client, sampled_points):
     latitudes = [str(point[1]) for point in sampled_points]
     longitudes = [str(point[0]) for point in sampled_points]
 
@@ -61,7 +63,7 @@ def fetch_weather(sampled_points):
         "&hourly=temperature_2m,precipitation,wind_speed_10m"
         "&forecast_days=1"
     )
-    response = requests.get(weather_url)
+    response = await client.get(weather_url)
     response.raise_for_status()
     return response.json()
 
@@ -87,8 +89,8 @@ def score_weather(temp, rain, wind):
     return score
 
 
-def assess_route_weather(start, end, api_key=API_KEY):
-    route_data = fetch_route(start, end, api_key)
+async def assess_route_weather(client, start, end, api_key=API_KEY):
+    route_data = await fetch_route(client, start, end, api_key)
 
     distance = route_data["features"][0]["properties"]["summary"]["distance"]
     duration = route_data["features"][0]["properties"]["summary"]["duration"]
@@ -102,7 +104,7 @@ def assess_route_weather(start, end, api_key=API_KEY):
     arrival_gap = duration_min / (sample_count - 1)
     arrival_times = [round(i * arrival_gap, 2) for i in range(sample_count)]
 
-    weather_data = fetch_weather(sampled_points)
+    weather_data = await fetch_weather(client, sampled_points)
 
     checkpoints = []
     total_weather_score = 0
@@ -157,6 +159,11 @@ def parse_coord(value):
     return [lon, lat]
 
 
+async def run(args):
+    async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
+        return await assess_route_weather(client, args.start, args.end)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Assess weather risk along a driving route."
@@ -175,7 +182,7 @@ def main():
     )
     args = parser.parse_args()
 
-    result = assess_route_weather(args.start, args.end)
+    result = asyncio.run(run(args))
 
     if args.json:
         print(json.dumps(result))
