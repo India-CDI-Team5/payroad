@@ -6,7 +6,9 @@ X-Ratelimit-Limit), so candidates are filtered before calling ORS, responses are
 disk, and the run stops before the key's remaining quota drops under --reserve.
 
 Run from PartB/ (after training.meteo_probe has written data/grid_cells.json):
-    python -m training.route_generator --n 24 --out data/routes_dryrun.parquet
+    python -m training.route_generator --n 400 --seed 42 --out data/routes.parquet
+Held-out routes for the final evaluation use their own seed and file, and are never trained on:
+    python -m training.route_generator --n 100 --seed 2027 --set holdout --out data/routes_holdout.parquet
 """
 import argparse
 import json
@@ -103,7 +105,7 @@ class QuotaExhausted(Exception):
     pass
 
 
-def build_record(route_id, stratum, hub, origin, dest, data, cells):
+def build_record(route_set, route_id, stratum, hub, origin, dest, data, cells):
     feat = data["features"][0]
     km = feat["properties"]["summary"]["distance"] / 1000
     minutes = feat["properties"]["summary"]["duration"] / 60
@@ -112,7 +114,7 @@ def build_record(route_id, stratum, hub, origin, dest, data, cells):
     total = pts[-1][2] or 1.0
     cell_ids = [nearest_cell(p[0], p[1], cells) for p in pts]
     return {
-        "route_id": route_id, "stratum": stratum, "hub": hub,
+        "route_set": route_set, "route_id": route_id, "stratum": stratum, "hub": hub,
         "origin_lat": origin[0], "origin_lon": origin[1], "dest_lat": dest[0], "dest_lon": dest[1],
         "distance_km": round(km, 3), "duration_min": round(minutes, 2),
         "detour_ratio": round(km / max(1e-6, _straight_km(origin, dest)), 3),
@@ -129,7 +131,7 @@ def _straight_km(a, b):
     return haversine_km(a[0], a[1], b[0], b[1])
 
 
-def generate(n, seed, reserve):
+def generate(n, seed, reserve, route_set):
     with open(os.path.join(DATA_DIR, "grid_cells.json"), encoding="utf-8") as f:
         cells = [tuple(c) for c in json.load(f)["cells"]]
     rng = random.Random(seed)
@@ -166,7 +168,7 @@ def generate(n, seed, reserve):
                     if not lo <= km < hi:
                         stats[stratum]["wrong_length"] += 1
                         continue
-                    records.append(build_record(len(records), stratum, hub, origin, dest, data, cells))
+                    records.append(build_record(route_set, len(records), stratum, hub, origin, dest, data, cells))
                     stats[stratum]["accepted"] += 1
                     got[stratum] += 1
                     break
@@ -211,10 +213,12 @@ def main():
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--reserve", type=int, default=30, help="ORS calls to leave unused for the app")
     ap.add_argument("--target", type=int, default=400, help="route count the full collection aims for")
+    ap.add_argument("--set", default="main", choices=["main", "holdout"],
+                    help="holdout routes are kept out of training and used only in the final evaluation")
     ap.add_argument("--out", default=os.path.join(DATA_DIR, "routes.parquet"))
     args = ap.parse_args()
 
-    records, stats, ors, stopped = generate(args.n, args.seed, args.reserve)
+    records, stats, ors, stopped = generate(args.n, args.seed, args.reserve, args.set)
     if records:
         pq.write_table(pa.Table.from_pylist(records), args.out)
     summary = summarize(records, stats, ors, stopped, args.target)

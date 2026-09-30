@@ -25,7 +25,7 @@ MODEL = "ecmwf_ifs"
 CENTER = (12.9716, 77.5946)
 LATTICE_STEP_DEG = 0.04          # finer than the ~0.07 x 0.082 deg cell, so every cell is hit
 CHUNK = 100                      # locations per request
-PLAN_START, PLAN_END = date(2024, 6, 1), date(2025, 11, 30)
+PLAN_START, PLAN_END = date(2022, 6, 1), date(2025, 11, 30)
 RAIN_MM = 0.1
 DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
 
