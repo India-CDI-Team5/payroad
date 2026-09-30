@@ -11,8 +11,11 @@ import com.cdi.dynamicpayroad.domain.DealEvent.BidPlaced;
 import com.cdi.dynamicpayroad.domain.DealEvent.BidUpdated;
 import com.cdi.dynamicpayroad.domain.DealEvent.BidWithdrawn;
 import com.cdi.dynamicpayroad.domain.DealEvent.DealExpired;
+import com.cdi.dynamicpayroad.domain.DealEvent.DealMatched;
+import com.cdi.dynamicpayroad.domain.DealEvent.OfferExpired;
 import com.cdi.dynamicpayroad.domain.DealEvent.OfferPosted;
 import com.cdi.dynamicpayroad.domain.Enums.EndReason;
+import com.cdi.dynamicpayroad.domain.Enums.MatchPath;
 import com.cdi.dynamicpayroad.domain.Enums.PendingSide;
 import com.cdi.dynamicpayroad.domain.Enums.WithdrawReason;
 
@@ -30,9 +33,9 @@ import java.util.Map;
  * then ownership and availability (NOT_DEAL_OWNER, DRIVER_NOT_AVAILABLE), then version
  * (VERSION_CONFLICT), then the command's own rules.
  *
- * <p>Implemented: R1, R2, R5, R11 (driver availability, rider ownership), R12.
- * Accepting (R3, R9) and timeouts (R6, R7) come next (milestone 10/3); R8 rounds are counted
- * but not yet capped.
+ * <p>R9 (one match only) holds because a MATCHED deal rejects every later accept; making
+ * concurrent callers see each other's result is the caller's job (one lock per market).
+ * A deal past its TTL rejects actions even before the next {@link Tick} marks it EXPIRED.
  */
 public final class DealStateMachine {
 
@@ -62,6 +65,10 @@ public final class DealStateMachine {
                     : reject(deal, ErrorCode.DEAL_NOT_ACTIVE, "종료된 거래입니다");
         }
 
+        if (!(command instanceof Tick) && !now.isBefore(deal.expiresAt())) {
+            return reject(deal, ErrorCode.DEAL_NOT_ACTIVE, "거래 시간이 만료되었습니다");
+        }
+
         Result refused = checkActor(deal, command, drivers);
         if (refused != null) return refused;
         refused = checkVersion(deal, command);
@@ -72,10 +79,27 @@ public final class DealStateMachine {
             case WithdrawBid c -> withdrawBid(deal, c);
             case PostOffer c -> postOffer(deal, c, now);
             case Cancel c -> cancel(deal);
-            case AcceptBid c -> throw new UnsupportedOperationException("R3/R9 accept-bid: milestone 10/3");
-            case AcceptOffer c -> throw new UnsupportedOperationException("R3/R6/R9 accept-offer: milestone 10/3");
-            case Tick c -> throw new UnsupportedOperationException("R6/R7 timeouts: milestone 10/3");
+            case AcceptBid c -> acceptBid(deal, c, now);
+            case AcceptOffer c -> acceptOffer(deal, c, now);
+            case Tick c -> tick(deal, now);
         };
+    }
+
+    /**
+     * Pull one driver's live bid out of a deal for a reason other than the driver asking
+     * (R10 matched elsewhere, R5 disconnected). Not a round (R8) and not counted in
+     * withdrawCount, which measures voluntary withdrawals. Returns the deal unchanged, with no
+     * events, when the driver has no live bid there.
+     */
+    public Result.Accepted forceWithdraw(Deal deal, String driverId, WithdrawReason reason) {
+        Deal.Bid bid = deal.bids().stream().filter(b -> b.driverId().equals(driverId)).findFirst().orElse(null);
+        if (bid == null || !deal.status().isActive()) return new Result.Accepted(deal, List.of());
+        Draft d = new Draft(deal);
+        d.bids.remove(bid);
+        d.version++;
+        Deal next = d.build();
+        return new Result.Accepted(next, List.of(new BidWithdrawn(next.dealId(), bid.bidId(), driverId, reason,
+                lowest(next), next.bids().size(), next.round(), next.version())));
     }
 
     // --- common checks ---------------------------------------------------------------------
@@ -135,6 +159,10 @@ public final class DealStateMachine {
                     "직전 호가(" + fmt(last) + ")보다 높은 가격은 제출할 수 없습니다");
         }
 
+        if (deal.round() >= rules.roundLimit()) {
+            return expire(deal, EndReason.ROUND_LIMIT);
+        }
+
         double pickupKm = Geo.haversineKm(c.driverLat(), c.driverLng(), deal.originLat(), deal.originLng());
         // A replaced bid gets a new id, so a rider cannot accept a price they never saw.
         Deal.Bid bid = new Deal.Bid(String.format("B-%03d", deal.nextBidSeq()), c.driverId(), c.price(),
@@ -184,6 +212,9 @@ public final class DealStateMachine {
             return reject(deal, ErrorCode.PRICE_NOT_CONCEDED,
                     "직전 오퍼(" + fmt(deal.lastOfferPrice()) + ")보다 낮은 가격은 제출할 수 없습니다");
         }
+        if (deal.round() >= rules.roundLimit()) {
+            return expire(deal, EndReason.ROUND_LIMIT);
+        }
         Draft d = new Draft(deal);
         d.offer = new Deal.RiderOffer(c.price(), now, now.plus(rules.offerTtl()));
         d.lastOfferPrice = c.price();
@@ -206,6 +237,82 @@ public final class DealStateMachine {
         d.version++;
         Deal next = d.build();
         return new Result.Accepted(next, List.of(new DealExpired(next.dealId(), EndReason.CANCELLED_BY_RIDER, next.version())));
+    }
+
+    /** R3 path A: the rider picks any live bid; that driver wins at that bid's price. */
+    private Result acceptBid(Deal deal, AcceptBid c, Instant now) {
+        List<Deal.Bid> ranked = deal.bidsAscending();
+        int index = -1;
+        for (int i = 0; i < ranked.size(); i++) {
+            if (ranked.get(i).bidId().equals(c.bidId())) index = i;
+        }
+        if (index < 0) {
+            return reject(deal, ErrorCode.BID_NOT_FOUND, "지목한 호가가 없거나 철회되었습니다");
+        }
+        Deal.Bid chosen = ranked.get(index);
+        Deal.Bid cheapest = ranked.get(0);
+        Deal.Match match = new Deal.Match(chosen.driverId(), chosen.price(), MatchPath.RIDER_PICKED_BID, index + 1,
+                cheapest.price(), chosen.pickupDistanceKm(), chosen.pickupEtaMin(),
+                cheapest.pickupDistanceKm(), cheapest.pickupEtaMin(), now);
+        return matched(deal, match);
+    }
+
+    /** R3 path B, R6: the first available driver to take a live rider offer wins at the offer price. */
+    private Result acceptOffer(Deal deal, AcceptOffer c, Instant now) {
+        Deal.RiderOffer offer = deal.offer();
+        if (offer == null) {
+            return reject(deal, ErrorCode.OFFER_NOT_FOUND, "수락할 승객 오퍼가 없습니다");
+        }
+        if (!now.isBefore(offer.expiresAt())) {
+            return reject(deal, ErrorCode.OFFER_EXPIRED, "승객 오퍼가 만료되었습니다");
+        }
+        Deal.Bid own = deal.bids().stream().filter(b -> b.driverId().equals(c.driverId())).findFirst().orElse(null);
+        List<Deal.Bid> ranked = deal.bidsAscending();
+        Deal.Bid cheapest = ranked.isEmpty() ? null : ranked.get(0);
+        Deal.Match match = new Deal.Match(c.driverId(), offer.price(), MatchPath.DRIVER_TOOK_OFFER, 0,
+                cheapest == null ? null : cheapest.price(),
+                own == null ? null : own.pickupDistanceKm(), own == null ? null : own.pickupEtaMin(),
+                cheapest == null ? null : cheapest.pickupDistanceKm(),
+                cheapest == null ? null : cheapest.pickupEtaMin(), now);
+        return matched(deal, match);
+    }
+
+    /** R7 deal TTL first, then R6 offer TTL. Nothing due means no change and no events. */
+    private Result tick(Deal deal, Instant now) {
+        if (!now.isBefore(deal.expiresAt())) {
+            return expire(deal, EndReason.TTL);
+        }
+        if (deal.offer() != null && !now.isBefore(deal.offer().expiresAt())) {
+            Draft d = new Draft(deal);
+            d.offer = null;
+            d.pendingSide = PendingSide.RIDER;
+            d.version++;
+            Deal next = d.build();
+            return new Result.Accepted(next, List.of(new OfferExpired(next.dealId(), next.pendingSide(), next.round(), next.version())));
+        }
+        return new Result.Accepted(deal, List.of());
+    }
+
+    private Result matched(Deal deal, Deal.Match match) {
+        Draft d = new Draft(deal);
+        d.status = DealStatus.MATCHED;
+        d.match = match;
+        d.offer = null;
+        d.version++;
+        Deal next = d.build();
+        return new Result.Accepted(next, List.of(new DealMatched(next.dealId(), match, next.version())));
+    }
+
+    /** Close without a match (R7 TTL, R8 round limit). Live bids and the offer lapse with it. */
+    private Result expire(Deal deal, EndReason reason) {
+        Draft d = new Draft(deal);
+        d.bids.clear();
+        d.offer = null;
+        d.status = DealStatus.EXPIRED;
+        d.endReason = reason;
+        d.version++;
+        Deal next = d.build();
+        return new Result.Accepted(next, List.of(new DealExpired(next.dealId(), reason, next.version())));
     }
 
     // --- helpers ---------------------------------------------------------------------------

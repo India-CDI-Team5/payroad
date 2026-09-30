@@ -253,6 +253,24 @@ class DealStateMachineTest {
     }
 
     @Test
+    @DisplayName("(보조) TTL이 지나면 Tick 전이라도 행동은 DEAL_NOT_ACTIVE, 오퍼 수락은 chosenRank 0과 수락 기사 자신의 픽업 거리를 기록")
+    void ttlGapAndOfferMatchFields() {
+        Deal d = bid(fresh(), "DR1", 150, 1);
+        rejected(apply(d, new PlaceBid("DR2", 120, 12.98, 77.60, d.version()), 180), ErrorCode.DEAL_NOT_ACTIVE);
+
+        d = bid(d, "DR2", 130, 2);
+        d = ok(apply(d, new PostOffer("R1", 125, d.version()), 3)).deal();
+        Deal.Match byBidder = ((DealMatched) ok(apply(d, new AcceptOffer("DR1", d.version()), 4)).events().get(0)).match();
+        assertThat(byBidder.chosenRank()).isZero();
+        assertThat(byBidder.finalPrice()).isEqualTo(125);
+        assertThat(byBidder.lowestBidPrice()).isEqualTo(130);
+        assertThat(byBidder.pickupDistanceKm()).isNotNull();
+
+        Deal.Match byStranger = ((DealMatched) ok(apply(d, new AcceptOffer("DR9", d.version()), 4)).events().get(0)).match();
+        assertThat(byStranger.pickupDistanceKm()).isNull();
+    }
+
+    @Test
     @DisplayName("(보조) 첫 호가는 bid.placed, 서버가 픽업 거리·ETA를 계산한다")
     void firstBidEvent() {
         Result.Accepted r = ok(apply(fresh(), new PlaceBid("DR1", 150, 12.98, 77.60, 1L), 1));

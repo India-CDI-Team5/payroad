@@ -70,8 +70,15 @@ public record Deal(
     /** The rider's live counter-offer; it lapses after the offer TTL (R6). */
     public record RiderOffer(double price, Instant createdAt, Instant expiresAt) {}
 
-    /** What DealHistory records when a deal closes (§6.4). */
+    /**
+     * What DealHistory records when a deal closes (§6.4).
+     *
+     * @param chosenRank position of the accepted bid in price order (1 = cheapest); 0 when a
+     *                   driver took the rider's offer, since no bid was chosen
+     * @param pickupDistanceKm the winner's pickup distance; null when a driver took the offer
+     *                         without having a bid on this deal (accept-offer carries no position)
+     */
     public record Match(String driverId, double finalPrice, MatchPath matchPath, int chosenRank,
-                        Double lowestBidPrice, double pickupDistanceKm, double pickupEtaMin,
+                        Double lowestBidPrice, Double pickupDistanceKm, Double pickupEtaMin,
                         Double lowestBidPickupDistanceKm, Double lowestBidPickupEtaMin, Instant matchedAt) {}
 }
