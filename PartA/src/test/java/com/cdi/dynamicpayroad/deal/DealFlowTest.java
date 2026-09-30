@@ -1,31 +1,25 @@
 package com.cdi.dynamicpayroad.deal;
 
+import com.cdi.dynamicpayroad.model.DealHistory;
+import com.cdi.dynamicpayroad.repository.DealHistoryRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpStatus;
-import org.springframework.messaging.converter.MappingJackson2MessageConverter;
-import org.springframework.messaging.simp.stomp.StompFrameHandler;
-import org.springframework.messaging.simp.stomp.StompHeaders;
-import org.springframework.messaging.simp.stomp.StompSession;
-import org.springframework.messaging.simp.stomp.StompSessionHandlerAdapter;
-import org.springframework.web.socket.client.standard.StandardWebSocketClient;
-import org.springframework.web.socket.messaging.WebSocketStompClient;
 
-import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
 
+import static com.cdi.dynamicpayroad.deal.StompProbe.next;
+import static com.cdi.dynamicpayroad.deal.StompProbe.version;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Walking-skeleton check: create deal (REST) -> bid (STOMP) -> accept-bid (STOMP) -> MATCHED,
- * using a real STOMP client against the running app, exactly as the front end would.
+ * The full path the front end takes: create deal (REST) -> two bids (STOMP) -> rider picks the
+ * pricier one (STOMP) -> MATCHED, with the rules of domain/ applied and a DealHistory row written.
  */
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
@@ -34,11 +28,11 @@ class DealFlowTest {
 
     @LocalServerPort int port;
     @Autowired TestRestTemplate rest;
+    @Autowired DealHistoryRepository history;
 
     @Test
     @SuppressWarnings("unchecked")
     void createDeal_bid_accept_ends_matched() throws Exception {
-        // 1) REST: create the deal.
         var created = rest.postForEntity("/api/deals", Map.of(
                 "riderId", "R001",
                 "origin", Map.of("lat", 12.9716, "lng", 77.5946),
@@ -46,71 +40,52 @@ class DealFlowTest {
         assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         Map<String, Object> deal = created.getBody();
         String dealId = (String) deal.get("dealId");
-        assertThat(deal.get("status")).isEqualTo("OPEN");
-        assertThat(deal.get("pendingSide")).isEqualTo("DRIVER");
-        assertThat(deal.get("basePrice")).isNotNull();
+        assertThat(deal).containsEntry("status", "OPEN").containsEntry("pendingSide", "DRIVER");
+        assertThat(version(deal)).isEqualTo(1);
+        assertThat((Map<String, Object>) deal.get("priceBand")).containsKeys("min", "max");
 
-        // 2) STOMP: connect and subscribe to the deal topic.
-        WebSocketStompClient client = new WebSocketStompClient(new StandardWebSocketClient());
-        client.setMessageConverter(new MappingJackson2MessageConverter());
-        StompSession session = client.connectAsync("ws://localhost:" + port + "/ws",
-                new StompSessionHandlerAdapter() {}).get(5, TimeUnit.SECONDS);
+        try (StompProbe probe = new StompProbe(port)) {
+            BlockingQueue<Map<String, Object>> events = probe.subscribe("/topic/deal/" + dealId);
+            BlockingQueue<Map<String, Object>> errors = probe.subscribe("/user/queue/errors");
 
-        BlockingQueue<Map<String, Object>> events = new LinkedBlockingQueue<>();
-        session.subscribe("/topic/deal/" + dealId, new StompFrameHandler() {
-            @Override public Type getPayloadType(StompHeaders headers) { return Map.class; }
-            @Override public void handleFrame(StompHeaders headers, Object payload) {
-                events.add((Map<String, Object>) payload);
-            }
-        });
-        Thread.sleep(300); // let the subscription register before sending
+            probe.send("/app/deal/" + dealId + "/bid", Map.of(
+                    "driverId", "DR042", "price", 190.0, "driverLat", 12.9401, "driverLng", 77.6102, "version", 1));
+            Map<String, Object> first = next(events);
+            assertThat(first).containsEntry("event", "bid.placed").containsEntry("pendingSide", "RIDER");
+            assertThat(version(first)).isEqualTo(2);
 
-        // 3) Two drivers bid; the rider will later pick the pricier one (rank 2).
-        session.send("/app/deal/" + dealId + "/bid", Map.of(
-                "driverId", "DR042", "price", 190.0, "driverLat", 12.9401, "driverLng", 77.6102, "version", 1));
-        Map<String, Object> first = events.poll(5, TimeUnit.SECONDS);
-        assertThat(first).isNotNull();
-        assertThat(first.get("event")).isEqualTo("bid.placed");
-        assertThat(first.get("bidderCount")).isEqualTo(1);
-        assertThat(first.get("pendingSide")).isEqualTo("RIDER");
+            probe.send("/app/deal/" + dealId + "/bid", Map.of(
+                    "driverId", "DR017", "price", 215.0, "driverLat", 12.9720, "driverLng", 77.5951, "version", version(first)));
+            Map<String, Object> second = next(events);
+            assertThat(second).containsEntry("lowestBidPrice", 190.0).containsEntry("bidderCount", 2);
+            String pricier = (String) ((Map<String, Object>) second.get("bid")).get("bidId");
 
-        session.send("/app/deal/" + dealId + "/bid", Map.of(
-                "driverId", "DR017", "price", 215.0, "driverLat", 12.9720, "driverLng", 77.5951, "version", 2));
-        Map<String, Object> second = events.poll(5, TimeUnit.SECONDS);
-        assertThat(second).isNotNull();
-        String pickedBidId = (String) ((Map<String, Object>) second.get("bid")).get("bidId");
-        assertThat(second.get("lowestBidPrice")).isEqualTo(190.0);
-        assertThat(((Number) second.get("version")).longValue())
-                .isGreaterThan(((Number) first.get("version")).longValue());
+            Map<String, Object> mid = rest.getForObject("/api/deals/" + dealId, Map.class);
+            assertThat(mid.get("status")).isEqualTo("NEGOTIATING");
+            assertThat((List<Map<String, Object>>) mid.get("bids")).extracting(b -> b.get("price")).containsExactly(190.0, 215.0);
 
-        // GET reflects NEGOTIATING with bids sorted cheapest first.
-        Map<String, Object> mid = rest.getForObject("/api/deals/" + dealId, Map.class);
-        assertThat(mid.get("status")).isEqualTo("NEGOTIATING");
-        List<Map<String, Object>> bids = (List<Map<String, Object>>) mid.get("bids");
-        assertThat(bids).extracting(b -> b.get("price")).containsExactly(190.0, 215.0);
+            probe.send("/app/deal/" + dealId + "/accept-bid", Map.of(
+                    "riderId", "R001", "bidId", pricier, "version", version(second)));
+            Map<String, Object> matched = next(events);
+            assertThat(matched).containsEntry("event", "deal.matched").containsEntry("driverId", "DR017")
+                    .containsEntry("finalPrice", 215.0).containsEntry("matchPath", "RIDER_PICKED_BID")
+                    .containsEntry("chosenRank", 2).containsEntry("lowestBidPrice", 190.0);
+            assertThat(errors).isEmpty();
+        }
 
-        // 4) Rider accepts the pricier bid -> MATCHED.
-        session.send("/app/deal/" + dealId + "/accept-bid", Map.of(
-                "riderId", "R001", "bidId", pickedBidId, "version", 3));
-        Map<String, Object> matched = events.poll(5, TimeUnit.SECONDS);
-        assertThat(matched).isNotNull();
-        assertThat(matched.get("event")).isEqualTo("deal.matched");
-        assertThat(matched.get("driverId")).isEqualTo("DR017");
-        assertThat(matched.get("finalPrice")).isEqualTo(215.0);
-        assertThat(matched.get("matchPath")).isEqualTo("RIDER_PICKED_BID");
-        assertThat(matched.get("chosenRank")).isEqualTo(2);
-        assertThat(matched.get("lowestBidPrice")).isEqualTo(190.0);
-
-        Map<String, Object> end = rest.getForObject("/api/deals/" + dealId, Map.class);
-        assertThat(end.get("status")).isEqualTo("MATCHED");
-
-        session.disconnect();
-        client.stop();
+        assertThat(rest.getForObject("/api/deals/" + dealId, Map.class).get("status")).isEqualTo("MATCHED");
+        DealHistory row = history.findAll().stream().filter(h -> dealId.equals(h.getDealId())).findFirst().orElseThrow();
+        assertThat(row.getEndStatus()).isEqualTo("MATCHED");
+        assertThat(row.getChosenRank()).isEqualTo(2);
+        assertThat(row.getMatchPath()).isEqualTo("RIDER_PICKED_BID");
+        assertThat(row.getFinalPrice()).isEqualTo(215.0);
+        assertThat(row.getBidderCount()).isEqualTo(2);
+        assertThat(row.getRoundCount()).isEqualTo(2);
+        assertThat(row.getMarkupRatio()).isEqualTo(215.0 / row.getBasePrice());
     }
 
     @Test
     void unknownDeal_returns404() {
-        assertThat(rest.getForEntity("/api/deals/D-nope", Map.class).getStatusCode())
-                .isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(rest.getForEntity("/api/deals/D-nope", Map.class).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 }

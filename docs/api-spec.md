@@ -15,6 +15,14 @@
 | 5 | R8 라운드 카운트에서 **철회 제외** 명시 | R8 |
 | 6 | 테스트 시나리오 16종 → **18종** | §8 |
 
+### v1.1 → v1.2 추가 사항 (구현 반영, 기존 필드 변경 없음)
+
+| # | 추가 | 위치 |
+|---|---|---|
+| 1 | `error` 이벤트 구독 경로를 **`/user/queue/errors`**로 명시 (STOMP 세션 단위 전달) | §5.1, §5.3 |
+| 2 | 승객 취소에 **`?riderId=` 쿼리 파라미터** 추가 (인증 부재로 본인 확인용) | §4.3 |
+| 3 | 라운드 상한(R8)에 걸린 행위는 반영하지 않고 거래를 `EXPIRED(ROUND_LIMIT)`로 종료하며, 요청자에게 `ROUND_LIMIT_EXCEEDED` 전송 | R8, §5.3 |
+
 ---
 
 ## 0. 설계 요약 — 무엇이 바뀌었나
@@ -276,6 +284,8 @@ Redis Lua 스크립트 + `version` CAS로 보장한다.
 
 ### 4.3 `DELETE /api/deals/{dealId}` — 승객 취소
 
+**요청**: `?riderId=R001` 🆕 v1.2 — 거래의 승객만 취소할 수 있다(`NOT_DEAL_OWNER` → 403).
+
 **응답 200**: `{ "dealId": "...", "status": "CANCELLED", "version": 8 }`
 
 ### 4.4 `GET /api/market` — 주변 시장 스냅샷
@@ -439,7 +449,7 @@ Redis Lua 스크립트 + `version` CAS로 보장한다.
 ```
 `reason`: `TTL` | `ROUND_LIMIT` | `CANCELLED_BY_RIDER` | `RIDER_DISCONNECTED`
 
-**`error`** (요청자에게만 전송) 🔄 v1.1
+**`error`** (요청자에게만 전송) 🔄 v1.1 — 구독 경로 `/user/queue/errors` 🆕 v1.2
 ```json
 {
   "event": "error",

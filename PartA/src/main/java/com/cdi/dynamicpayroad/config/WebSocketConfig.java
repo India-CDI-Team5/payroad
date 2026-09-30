@@ -9,7 +9,8 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 /**
  * STOMP over WebSocket (api-spec §5.1).
  * Clients connect to /ws, subscribe to /topic/deal/{dealId} and /topic/market/{geohash},
- * and send commands to /app/deal/{dealId}/...
+ * and send commands to /app/deal/{dealId}/... A rejected command is answered only to the
+ * sender's session on /user/queue/errors.
  */
 @Configuration
 @EnableWebSocketMessageBroker
@@ -23,7 +24,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
-        registry.enableSimpleBroker("/topic");
+        registry.enableSimpleBroker("/topic", "/queue");
         registry.setApplicationDestinationPrefixes("/app");
+        registry.setUserDestinationPrefix("/user");
     }
 }

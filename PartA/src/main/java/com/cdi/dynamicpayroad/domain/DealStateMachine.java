@@ -104,24 +104,26 @@ public final class DealStateMachine {
 
     // --- common checks ---------------------------------------------------------------------
 
-    /** R11: riders act only on their own deal; drivers only while available. */
+    /** R11: riders act only on their own deal; drivers only while available. A missing id never passes. */
     private Result checkActor(Deal deal, DealCommand command, DriverAvailability drivers) {
+        boolean riderCommand = command instanceof PostOffer || command instanceof AcceptBid || command instanceof Cancel;
         String rider = switch (command) {
             case PostOffer c -> c.riderId();
             case AcceptBid c -> c.riderId();
             case Cancel c -> c.riderId();
             default -> null;
         };
-        if (rider != null && !rider.equals(deal.riderId())) {
+        if (riderCommand && !deal.riderId().equals(rider)) {
             return reject(deal, ErrorCode.NOT_DEAL_OWNER, "본인의 거래가 아닙니다");
         }
+        boolean driverCommand = command instanceof PlaceBid || command instanceof WithdrawBid || command instanceof AcceptOffer;
         String driver = switch (command) {
             case PlaceBid c -> c.driverId();
             case WithdrawBid c -> c.driverId();
             case AcceptOffer c -> c.driverId();
             default -> null;
         };
-        if (driver != null && !drivers.isAvailable(driver)) {
+        if (driverCommand && (driver == null || !drivers.isAvailable(driver))) {
             return reject(deal, ErrorCode.DRIVER_NOT_AVAILABLE, "지금은 호가·수락을 할 수 없는 기사입니다");
         }
         return null;
