@@ -37,7 +37,19 @@ public class RouteController {
         factory.setConnectTimeout(Duration.ofSeconds(5));
         factory.setReadTimeout(Duration.ofSeconds(10));
         this.ors = RestClient.builder().requestFactory(factory).build();
-        this.apiKey = apiKey;
+        this.apiKey = unquote(apiKey);
+    }
+
+    /**
+     * The .env file is written for python-dotenv, which strips surrounding quotes, but Spring's
+     * [.properties] import keeps them, so ORS would receive `"key"` and answer 403.
+     */
+    static String unquote(String value) {
+        String v = value.strip();
+        if (v.length() >= 2 && (v.startsWith("\"") && v.endsWith("\"") || v.startsWith("'") && v.endsWith("'"))) {
+            return v.substring(1, v.length() - 1);
+        }
+        return v;
     }
 
     @PostMapping("/api/route")
