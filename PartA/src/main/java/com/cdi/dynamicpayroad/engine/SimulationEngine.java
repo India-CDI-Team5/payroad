@@ -1,14 +1,15 @@
 package com.cdi.dynamicpayroad.engine;
 
 import com.cdi.dynamicpayroad.model.Driver;
-import com.cdi.dynamicpayroad.model.MatchResult;
+import com.cdi.dynamicpayroad.model.DealHistory;
 import com.cdi.dynamicpayroad.model.User;
 import com.cdi.dynamicpayroad.pool.OnlinePool;
 import com.cdi.dynamicpayroad.repository.DriverRepository;
-import com.cdi.dynamicpayroad.repository.MatchResultRepository;
+import com.cdi.dynamicpayroad.repository.DealHistoryRepository;
 import com.cdi.dynamicpayroad.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -49,20 +50,28 @@ public class SimulationEngine {
 
     private final UserRepository userRepository;
     private final DriverRepository driverRepository;
-    private final MatchResultRepository matchResultRepository;
+    private final DealHistoryRepository dealHistoryRepository;
     private final OnlinePool pool;
     private final MatchingEngine matching;
-    private final Random rnd = new Random();
+    private final Random rnd;
+    private final long randomSeed;
+    private final String experimentTag;
     private final ScheduledExecutorService tripScheduler = Executors.newScheduledThreadPool(4);
 
     public SimulationEngine(UserRepository userRepository, DriverRepository driverRepository,
-                             MatchResultRepository matchResultRepository, OnlinePool pool,
-                             MatchingEngine matching) {
+                             DealHistoryRepository dealHistoryRepository, OnlinePool pool,
+                             MatchingEngine matching,
+                             @Value("${simulation.experiment-tag:baseline-surge}") String experimentTag,
+                             @Value("${simulation.random-seed:#{null}}") Long randomSeed) {
         this.userRepository = userRepository;
         this.driverRepository = driverRepository;
-        this.matchResultRepository = matchResultRepository;
+        this.dealHistoryRepository = dealHistoryRepository;
         this.pool = pool;
         this.matching = matching;
+        this.experimentTag = experimentTag;
+        // No seed configured -> pick one, but still record it so the run can be replayed.
+        this.randomSeed = randomSeed != null ? randomSeed : System.nanoTime();
+        this.rnd = new Random(this.randomSeed);
     }
 
     @Scheduled(fixedRate = 1000)
@@ -134,18 +143,22 @@ public class SimulationEngine {
         claimed.setStatus(Driver.Status.DRIVING);
         driverRepository.save(claimed);
 
-        double baseFare = FLAG_FARE + PER_KM_FARE * outcome.pickupDistanceKm();
-        double finalFare = baseFare * outcome.surge();
+        double basePrice = FLAG_FARE + PER_KM_FARE * outcome.pickupDistanceKm();
+        double finalPrice = basePrice * outcome.surge();
+        double markupRatio = finalPrice / basePrice;
 
-        matchResultRepository.save(new MatchResult(
+        // No bargaining in this simulation yet: zero rounds, zero bidders, instant close.
+        dealHistoryRepository.save(new DealHistory(
                 user.getId(), claimed.getId(), Instant.now(),
                 outcome.pickupDistanceKm(), outcome.demandInRadius(), outcome.supplyInRadius(),
-                outcome.surge(), baseFare, finalFare));
+                basePrice, finalPrice, markupRatio,
+                0, 0, 0L,
+                experimentTag, randomSeed));
         log.info("MATCHED user={} driver={} dist={}km demand={} supply={} surge={}x fare={}",
                 user.getId(), claimed.getId(),
                 String.format("%.2f", outcome.pickupDistanceKm()),
                 outcome.demandInRadius(), outcome.supplyInRadius(),
-                outcome.surge(), String.format("%.1f", finalFare));
+                outcome.surge(), String.format("%.1f", finalPrice));
 
         long tripMs = MIN_TRIP_MS + rnd.nextInt((int) (MAX_TRIP_MS - MIN_TRIP_MS));
         tripScheduler.schedule(() -> completeTrip(user, claimed), tripMs, TimeUnit.MILLISECONDS);
