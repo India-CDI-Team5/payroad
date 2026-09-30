@@ -1,6 +1,7 @@
 import argparse
 import asyncio
 import json
+from datetime import datetime, timedelta, timezone
 
 import httpx
 from diskcache import Cache
@@ -85,7 +86,8 @@ async def fetch_weather(client, sampled_points):
         f"?latitude={','.join(latitudes)}"
         f"&longitude={','.join(longitudes)}"
         "&hourly=temperature_2m,precipitation,wind_speed_10m"
-        "&forecast_days=1"
+        "&forecast_days=2"
+        "&timezone=auto"
     )
     response = await client.get(weather_url)
     response.raise_for_status()
@@ -115,7 +117,21 @@ def score_weather(temp, rain, wind):
     return score
 
 
-async def assess_route_weather(client, start, end, api_key=API_KEY):
+def hourly_position(hourly_times, utc_offset_sec, now_utc, arrival_min):
+    """Fractional index into the hourly arrays for the moment the driver reaches a point.
+
+    Open-Meteo (timezone=auto) returns local-time stamps starting at 00:00 today,
+    so the index is how many hours the arrival time is past that first stamp.
+    Clamped to the forecast range so late trips never index out of bounds.
+    """
+    first = datetime.fromisoformat(hourly_times[0])
+    local_now = (now_utc + timedelta(seconds=utc_offset_sec)).replace(tzinfo=None)
+    arrival = local_now + timedelta(minutes=arrival_min)
+    position = (arrival - first).total_seconds() / 3600
+    return min(max(position, 0.0), len(hourly_times) - 1)
+
+
+async def assess_route_weather(client, start, end, api_key=API_KEY, now_utc=None):
     route_data = await fetch_route(client, start, end, api_key)
 
     distance = route_data["features"][0]["properties"]["summary"]["distance"]
@@ -131,18 +147,22 @@ async def assess_route_weather(client, start, end, api_key=API_KEY):
     arrival_times = [round(i * arrival_gap, 2) for i in range(sample_count)]
 
     weather_data = await fetch_weather(client, sampled_points)
+    if now_utc is None:
+        now_utc = datetime.now(timezone.utc)
 
     checkpoints = []
     total_weather_score = 0
 
     for idx, location_weather in enumerate(weather_data):
         arrival_min = arrival_times[idx]
-        hour_position = arrival_min / 60
-        lower_hour = int(hour_position)
-        upper_hour = min(lower_hour + 1, 23)
-        fraction = hour_position - lower_hour
-
         hourly = location_weather["hourly"]
+
+        hour_position = hourly_position(
+            hourly["time"], location_weather["utc_offset_seconds"], now_utc, arrival_min
+        )
+        lower_hour = int(hour_position)
+        upper_hour = min(lower_hour + 1, len(hourly["time"]) - 1)
+        fraction = hour_position - lower_hour
 
         def interpolate(field):
             lower = hourly[field][lower_hour]
