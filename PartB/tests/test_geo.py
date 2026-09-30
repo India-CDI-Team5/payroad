@@ -1,4 +1,4 @@
-from training.geo import haversine_km, in_bbox, nearest_cell, offset, resample
+from geo import haversine_km, in_bbox, nearest_cell, offset, resample
 
 
 def test_offset_travels_requested_distance():

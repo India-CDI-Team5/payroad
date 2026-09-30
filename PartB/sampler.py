@@ -10,6 +10,7 @@ import os
 
 from clients.meteo_client import fetch_forecast
 from clients.ors_client import ORS_KEY, fetch_route
+from geo import haversine_km
 
 HTTP_TIMEOUT = httpx.Timeout(10.0)
 WEATHER_VARIABLES = "temperature_2m,precipitation,wind_speed_10m"
@@ -30,14 +31,29 @@ def determine_sample_count(distance_km):
 
 
 def sample_route(route_coordinates, sample_count):
-    total_points = len(route_coordinates)
-    interval = total_points // (sample_count - 1)
+    """sample_count points ([lon, lat]) evenly spaced by distance along the route, both ends included.
 
-    sampled_points = [
-        route_coordinates[i * interval] for i in range(sample_count - 1)
-    ]
-    sampled_points.append(route_coordinates[-1])
-    return sampled_points
+    Spacing by distance (not by coordinate index) matches the arrival times, which assume a
+    constant speed, and still works when ORS returns fewer coordinates than samples.
+    """
+    coords = [(c[1], c[0]) for c in route_coordinates]
+    cumulative = [0.0]
+    for (a_lat, a_lon), (b_lat, b_lon) in zip(coords, coords[1:]):
+        cumulative.append(cumulative[-1] + haversine_km(a_lat, a_lon, b_lat, b_lon))
+    total = cumulative[-1]
+    if total == 0:
+        return [list(route_coordinates[0]) for _ in range(sample_count)]
+
+    sampled, seg = [], 0
+    for i in range(sample_count):
+        target = total * i / (sample_count - 1)
+        while seg < len(cumulative) - 2 and cumulative[seg + 1] < target:
+            seg += 1
+        length = cumulative[seg + 1] - cumulative[seg]
+        f = (target - cumulative[seg]) / length if length > 0 else 0.0
+        (a_lat, a_lon), (b_lat, b_lon) = coords[seg], coords[seg + 1]
+        sampled.append([a_lon + f * (b_lon - a_lon), a_lat + f * (b_lat - a_lat)])
+    return sampled
 
 
 async def fetch_weather(client, sampled_points):

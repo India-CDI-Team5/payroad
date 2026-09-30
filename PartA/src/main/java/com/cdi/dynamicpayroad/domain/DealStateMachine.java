@@ -53,10 +53,6 @@ public final class DealStateMachine {
         this.rules = rules;
     }
 
-    public DealRules rules() {
-        return rules;
-    }
-
     public Result apply(Deal deal, DealCommand command, DriverAvailability drivers, Instant now) {
         if (!deal.status().isActive()) {
             if (command instanceof Tick) return new Result.Accepted(deal, List.of());

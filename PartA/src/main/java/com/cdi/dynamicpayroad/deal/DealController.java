@@ -58,8 +58,11 @@ public class DealController {
     @DeleteMapping("/api/deals/{dealId}")
     public ResponseEntity<Map<String, Object>> cancel(@PathVariable String dealId, @RequestParam String riderId) {
         DealService.Reply reply = deals.cancel(dealId, riderId);
-        if (reply.error() == null && reply.body().get("code") == null) return ResponseEntity.ok(reply.body());
-        return ResponseEntity.status(statusOf(reply.error())).body(reply.body());
+        return switch (reply.outcome()) {
+            case OK -> ResponseEntity.ok(reply.body());
+            case NOT_FOUND -> ResponseEntity.status(HttpStatus.NOT_FOUND).body(reply.body());
+            case REJECTED -> ResponseEntity.status(statusOf(reply.error())).body(reply.body());
+        };
     }
 
     @MessageMapping("/deal/{dealId}/bid")
@@ -93,7 +96,6 @@ public class DealController {
     }
 
     private static HttpStatus statusOf(ErrorCode code) {
-        if (code == null) return HttpStatus.NOT_FOUND;
         return switch (code) {
             case NOT_DEAL_OWNER -> HttpStatus.FORBIDDEN;
             case VERSION_CONFLICT, DEAL_ALREADY_MATCHED, DEAL_NOT_ACTIVE -> HttpStatus.CONFLICT;

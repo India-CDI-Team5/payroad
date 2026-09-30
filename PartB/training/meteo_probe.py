@@ -19,7 +19,7 @@ from datetime import date, datetime, timedelta, timezone
 import httpx
 
 from clients.meteo_client import MODEL, api_calls, fetch_archive
-from training.geo import BBOX, nearest_cell
+from geo import BBOX, nearest_cell
 
 CENTER = (12.9716, 77.5946)
 LATTICE_STEP_DEG = 0.04          # finer than the ~0.07 x 0.082 deg cell, so every cell is hit

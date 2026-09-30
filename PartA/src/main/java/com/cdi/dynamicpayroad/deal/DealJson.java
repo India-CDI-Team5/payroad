@@ -6,7 +6,6 @@ import com.cdi.dynamicpayroad.domain.DealRules;
 import com.cdi.dynamicpayroad.domain.ErrorCode;
 
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 /** Wire shapes of api-spec §4 (REST) and §5.3 (STOMP events): every event carries event, dealId, version. */
@@ -119,9 +118,5 @@ final class DealJson {
 
     static double round2(double v) {
         return Math.round(v * 100.0) / 100.0;
-    }
-
-    static List<Map<String, Object>> events(List<DealEvent> events) {
-        return events.stream().map(DealJson::event).toList();
     }
 }

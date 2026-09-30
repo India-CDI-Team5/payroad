@@ -24,7 +24,7 @@ import pyarrow.parquet as pq
 from diskcache import Cache
 
 from clients.ors_client import ORS_KEY, ORS_URL, route_body
-from training.geo import in_bbox, nearest_cell, offset, resample
+from geo import haversine_km, in_bbox, nearest_cell, offset, resample
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
 ors_cache = Cache(os.path.join(os.path.dirname(__file__), "..", ".cache", "ors_training"))
@@ -113,18 +113,13 @@ def build_record(route_set, route_id, stratum, hub, origin, dest, data, cells):
         "route_set": route_set, "route_id": route_id, "stratum": stratum, "hub": hub,
         "origin_lat": origin[0], "origin_lon": origin[1], "dest_lat": dest[0], "dest_lon": dest[1],
         "distance_km": round(km, 3), "duration_min": round(minutes, 2),
-        "detour_ratio": round(km / max(1e-6, _straight_km(origin, dest)), 3),
+        "detour_ratio": round(km / max(1e-6, haversine_km(origin[0], origin[1], dest[0], dest[1])), 3),
         "lat": [p[0] for p in pts], "lon": [p[1] for p in pts],
         "s_km": [round(p[2], 3) for p in pts],
         # Arrival offset along the route, assuming ORS's average speed holds on every segment.
         "t_min": [round(p[2] / total * minutes, 2) for p in pts],
         "cell": cell_ids, "unique_cells": len(set(cell_ids)),
     }
-
-
-def _straight_km(a, b):
-    from training.geo import haversine_km
-    return haversine_km(a[0], a[1], b[0], b[1])
 
 
 def generate(n, seed, reserve, route_set):

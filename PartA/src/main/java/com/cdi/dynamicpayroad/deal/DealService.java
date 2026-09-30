@@ -8,6 +8,7 @@ import com.cdi.dynamicpayroad.domain.DealStateMachine;
 import com.cdi.dynamicpayroad.domain.Enums.DriverStatus;
 import com.cdi.dynamicpayroad.domain.Enums.EndReason;
 import com.cdi.dynamicpayroad.domain.ErrorCode;
+import com.cdi.dynamicpayroad.domain.Geo;
 import com.cdi.dynamicpayroad.domain.MarketStateMachine;
 import com.cdi.dynamicpayroad.domain.MarketStateMachine.MarketResult;
 import com.cdi.dynamicpayroad.domain.MarketStateMachine.MarketState;
@@ -53,10 +54,9 @@ public class DealService {
     /** What the deal was created with, beyond the domain state. */
     public record Meta(double destLat, double destLng, double distanceKm, double durationMin, int demand, int supply) {}
 
-    /** Result of a REST-style call: the body to return, or the rejection. */
-    public record Reply(Map<String, Object> body, ErrorCode error) {
-        static Reply ok(Map<String, Object> body) { return new Reply(body, null); }
-        static Reply fail(Map<String, Object> error, ErrorCode code) { return new Reply(error, code); }
+    /** Result of a REST-style call. {@code error} is set only when {@code outcome} is REJECTED. */
+    public record Reply(Outcome outcome, Map<String, Object> body, ErrorCode error) {
+        public enum Outcome { OK, NOT_FOUND, REJECTED }
     }
 
     private final DealRules rules = DealRules.defaults();
@@ -82,15 +82,11 @@ public class DealService {
         this.experimentTag = experimentTag;
     }
 
-    public DealRules rules() {
-        return rules;
-    }
-
     /** §4.1: open a deal at a placeholder base price, with the local demand/supply snapshot. */
     public synchronized Map<String, Object> create(String riderId, double originLat, double originLng,
                                                    double destLat, double destLng) {
         Instant now = clock.instant();
-        double distanceKm = new Location(originLat, originLng).distanceTo(new Location(destLat, destLng)) * rules.detourFactor();
+        double distanceKm = Geo.haversineKm(originLat, originLng, destLat, destLng) * rules.detourFactor();
         double durationMin = distanceKm / rules.avgSpeedKmh() * 60;
         double basePrice = DealJson.round2(FLAG_PRICE + PER_KM_PRICE * distanceKm);
         MatchingEngine.Outcome local = matching.evaluateAt(new Location(originLat, originLng), pool.users(), pool.waitingDrivers());
@@ -114,11 +110,15 @@ public class DealService {
 
     /** §4.3: the rider cancels (R12). */
     public synchronized Reply cancel(String dealId, String riderId) {
-        if (!market.deals().containsKey(dealId)) return notFound(dealId);
+        if (!market.deals().containsKey(dealId)) {
+            return new Reply(Reply.Outcome.NOT_FOUND, DealJson.error(dealId, ErrorCode.DEAL_NOT_ACTIVE, "거래가 없습니다", 0), null);
+        }
         Map<String, Object> error = apply(dealId, new DealCommand.Cancel(riderId));
-        if (error != null) return Reply.fail(error, ErrorCode.valueOf((String) error.get("code")));
+        if (error != null) {
+            return new Reply(Reply.Outcome.REJECTED, error, ErrorCode.valueOf((String) error.get("code")));
+        }
         Deal d = market.deals().get(dealId);
-        return Reply.ok(Map.of("dealId", dealId, "status", d.status().name(), "version", d.version()));
+        return new Reply(Reply.Outcome.OK, Map.of("dealId", dealId, "status", d.status().name(), "version", d.version()), null);
     }
 
     /**
@@ -197,9 +197,5 @@ public class DealService {
                 experimentTag, null, closedAt));
         log.info("DEAL CLOSED {} status={} reason={} price={}", deal.dealId(), deal.status(),
                 deal.endReason(), deal.match() == null ? null : deal.match().finalPrice());
-    }
-
-    private static Reply notFound(String dealId) {
-        return Reply.fail(DealJson.error(dealId, ErrorCode.DEAL_NOT_ACTIVE, "거래가 없습니다", 0), null);
     }
 }
