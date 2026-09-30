@@ -407,19 +407,6 @@
         const instructionBox = document.getElementById('instructionBox');
         const instructionText = document.getElementById('instructionText');
         const calcBtn = document.getElementById('calcBtn');
-        let orsApiKey = "";
-        
-        // Fetch config on load
-        async function loadConfig() {
-            try {
-                const res = await fetch('/api/config');
-                const config = await res.json();
-                orsApiKey = config.orsApiKey;
-            } catch (e) {
-                console.error("Failed to load config", e);
-            }
-        }
-        loadConfig();
 
         function clearWeatherMarkers() {
             weatherMarkers.forEach(m => map.removeLayer(m));
@@ -438,20 +425,16 @@
                 instructionBox.innerHTML = '<div class="loader" style="display:inline-block; width:12px; height:12px; margin-right:8px; border-width:2px;"></div><span>Finding best route...</span>';
                 
                 try {
-                    // Fetch real road route from OpenRouteService
-                    const response = await fetch("https://api.openrouteservice.org/v2/directions/driving-car/geojson", {
+                    // Real road route, fetched through our server (the ORS key stays server-side)
+                    const response = await fetch("/api/route", {
                         method: 'POST',
-                        headers: {
-                            'Authorization': orsApiKey,
-                            'Content-Type': 'application/json'
-                        },
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            coordinates: [
-                                [originMarker.getLatLng().lng, originMarker.getLatLng().lat],
-                                [destMarker.getLatLng().lng, destMarker.getLatLng().lat]
-                            ]
+                            start: { lat: originMarker.getLatLng().lat, lon: originMarker.getLatLng().lng },
+                            end: { lat: destMarker.getLatLng().lat, lon: destMarker.getLatLng().lng }
                         })
                     });
+                    if (!response.ok) throw new Error("route lookup failed: " + response.status);
                     
                     const data = await response.json();
                     const coords = data.features[0].geometry.coordinates;

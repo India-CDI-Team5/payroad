@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
-/** HTTP surface for Part C: local demand/supply/surge lookup and a liveness check. */
+/** HTTP surface for the dashboard (formerly Part C): local demand/supply/surge lookup and a liveness check. */
 @RestController
 public class SupplyDemandController {
 

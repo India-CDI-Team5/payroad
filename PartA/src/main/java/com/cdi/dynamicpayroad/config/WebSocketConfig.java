@@ -17,7 +17,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        // Part C is served from a different origin, so allow cross-origin handshakes.
+        // Dev convenience: the dashboard is now same-origin (static/index.html), but keep cross-origin open for local tools.
         registry.addEndpoint("/ws").setAllowedOriginPatterns("*");
     }
 
