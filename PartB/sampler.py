@@ -7,26 +7,18 @@ import httpx
 from diskcache import Cache
 
 import os
-from dotenv import load_dotenv
 
-# Load .env from root directory (one level up from PartB)
-load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
+from clients.ors_client import ORS_KEY, fetch_route
 
-API_KEY = os.environ.get("ORS_API_KEY", "")
-
-ROUTE_URL = "https://api.openrouteservice.org/v2/directions/driving-car/geojson"
 WEATHER_URL = "https://api.open-meteo.com/v1/forecast"
 HTTP_TIMEOUT = httpx.Timeout(10.0)
 
-# On-disk cache shared across restarts and worker processes.
+# On-disk cache shared across restarts and worker processes (ORS routes and forecasts).
 CACHE_DIR = os.path.join(os.path.dirname(__file__), ".cache")
-ROUTE_TTL_SEC = 60 * 60       # roads rarely change
 WEATHER_TTL_SEC = 10 * 60     # forecasts update often
 cache = Cache(CACHE_DIR)
 
 
-# Route keys stay precise (~11 m): two different trips must never share a route.
-ROUTE_KEY_DECIMALS = 4
 # Open-Meteo's grid cell is ~7-8 km (docs/weather-grid-resolution.md), so finer keys only
 # lower the hit rate. 2 decimals (~1.1 km) is coarser than the data but safely finer than the cell.
 WEATHER_KEY_DECIMALS = 2
@@ -34,27 +26,6 @@ WEATHER_KEY_DECIMALS = 2
 
 def _key_point(point, decimals):
     return f"{point[0]:.{decimals}f},{point[1]:.{decimals}f}"
-
-
-async def fetch_route(client, start, end, api_key=API_KEY):
-    key = f"route:{_key_point(start, ROUTE_KEY_DECIMALS)}:{_key_point(end, ROUTE_KEY_DECIMALS)}"
-    cached = cache.get(key)
-    if cached is not None:
-        return cached
-
-    headers = {
-        "Authorization": api_key,
-        "Content-Type": "application/json"
-    }
-    body = {
-        "coordinates": [start, end],
-        "instructions": False
-    }
-    response = await client.post(ROUTE_URL, json=body, headers=headers)
-    response.raise_for_status()
-    data = response.json()
-    cache.set(key, data, expire=ROUTE_TTL_SEC)
-    return data
 
 
 def determine_sample_count(distance_km):
@@ -137,8 +108,8 @@ def hourly_position(hourly_times, utc_offset_sec, now_utc, arrival_min):
     return min(max(position, 0.0), len(hourly_times) - 1)
 
 
-async def assess_route_weather(client, start, end, api_key=API_KEY, now_utc=None):
-    route_data = await fetch_route(client, start, end, api_key)
+async def assess_route_weather(client, start, end, api_key=ORS_KEY, now_utc=None):
+    route_data = await fetch_route(client, start, end, api_key, cache=cache)
 
     distance = route_data["features"][0]["properties"]["summary"]["distance"]
     duration = route_data["features"][0]["properties"]["summary"]["duration"]

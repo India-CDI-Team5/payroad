@@ -1,7 +1,16 @@
+# Service (app.py, sampler.py, clients/)
 fastapi==0.139.2
 uvicorn[standard]==0.51.0
-requests==2.34.2
 httpx==0.28.1
 diskcache==5.6.3
+python-dotenv==1.2.2
+
+# Model A data collection, training and evaluation (training/)
 pyarrow==25.0.1
-python-dotenv==1.0.1
+numpy==2.5.1
+scipy==1.18.0
+scikit-learn==1.9.0
+matplotlib==3.11.2
+
+# Tests (tests/)
+pytest==9.1.1

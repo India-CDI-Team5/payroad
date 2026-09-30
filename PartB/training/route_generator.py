@@ -22,13 +22,10 @@ import httpx
 import pyarrow as pa
 import pyarrow.parquet as pq
 from diskcache import Cache
-from dotenv import load_dotenv
 
+from clients.ors_client import ORS_KEY, ORS_URL, route_body
 from training.geo import in_bbox, nearest_cell, offset, resample
 
-load_dotenv(os.path.join(os.path.dirname(__file__), "..", "..", ".env"))
-ORS_URL = "https://api.openrouteservice.org/v2/directions/driving-car/geojson"
-ORS_KEY = os.environ.get("ORS_API_KEY", "")
 DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
 ors_cache = Cache(os.path.join(os.path.dirname(__file__), "..", ".cache", "ors_training"))
 
@@ -84,8 +81,7 @@ class Ors:
             return hit
         if self.remaining is not None and self.remaining <= self.reserve:
             raise QuotaExhausted(self.remaining)
-        body = {"coordinates": [[origin[1], origin[0]], [dest[1], dest[0]]],
-                "radiuses": [1000, 1000], "instructions": False}
+        body = route_body([origin[1], origin[0]], [dest[1], dest[0]], radiuses=[1000, 1000])
         r = self.client.post(ORS_URL, json=body, headers={"Authorization": ORS_KEY})
         self.calls += 1
         self.limit = int(r.headers.get("x-ratelimit-limit", self.limit or 0))
