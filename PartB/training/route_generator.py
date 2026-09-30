@@ -139,34 +139,39 @@ def generate(n, seed, reserve):
     stopped = None
     with httpx.Client(timeout=30) as client:
         ors = Ors(client, reserve)
-        for stratum, want in quota.items():
-            got = 0
-            while got < want:
-                stats[stratum]["candidates"] += 1
-                cand = candidate(rng, stratum)
-                if cand is None:
-                    stats[stratum]["off_map"] += 1
-                    continue
-                hub, origin, dest = cand
-                try:
-                    data = ors.route(origin, dest)
-                except QuotaExhausted as e:
-                    stopped = f"stopped with {e.args[0]} ORS calls left (reserve {reserve})"
+        # Strata take turns, one accepted route each, so a run cut short by the ORS quota
+        # still leaves a balanced set. Re-running with the same seed replays cached ORS
+        # answers call-free and carries on where the last run stopped.
+        got = Counter()
+        while not stopped and any(got[s] < quota[s] for s in STRATA):
+            for stratum in [s for s in STRATA if got[s] < quota[s]]:
+                while True:
+                    stats[stratum]["candidates"] += 1
+                    cand = candidate(rng, stratum)
+                    if cand is None:
+                        stats[stratum]["off_map"] += 1
+                        continue
+                    hub, origin, dest = cand
+                    try:
+                        data = ors.route(origin, dest)
+                    except QuotaExhausted as e:
+                        stopped = f"stopped with {e.args[0]} ORS calls left (reserve {reserve})"
+                        break
+                    stats[stratum]["ors_requests"] += 1
+                    if "error" in data:
+                        stats[stratum]["unroutable"] += 1
+                        continue
+                    km = data["features"][0]["properties"]["summary"]["distance"] / 1000
+                    lo, hi = STRATA[stratum]
+                    if not lo <= km < hi:
+                        stats[stratum]["wrong_length"] += 1
+                        continue
+                    records.append(build_record(len(records), stratum, hub, origin, dest, data, cells))
+                    stats[stratum]["accepted"] += 1
+                    got[stratum] += 1
                     break
-                stats[stratum]["ors_requests"] += 1
-                if "error" in data:
-                    stats[stratum]["unroutable"] += 1
-                    continue
-                km = data["features"][0]["properties"]["summary"]["distance"] / 1000
-                lo, hi = STRATA[stratum]
-                if not lo <= km < hi:
-                    stats[stratum]["wrong_length"] += 1
-                    continue
-                records.append(build_record(len(records), stratum, hub, origin, dest, data, cells))
-                stats[stratum]["accepted"] += 1
-                got += 1
-            if stopped:
-                break
+                if stopped:
+                    break
     return records, stats, ors, stopped
 
 
