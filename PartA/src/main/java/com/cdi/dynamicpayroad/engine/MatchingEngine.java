@@ -16,7 +16,7 @@ import java.util.Collection;
  */
 @Component
 public class MatchingEngine {
-    private static final double RADIUS_KM = 5.0;
+    public static final double RADIUS_KM = 5.0;
 
     /**
      * Price multiplier is clamped to this band so fares stay sane at extremes.
@@ -71,11 +71,12 @@ public class MatchingEngine {
     /**
      * More riders than nearby drivers pushes price up (>1.0); more drivers than
      * riders pulls it down (<1.0). demand==supply is the neutral 1.0 point.
+     * Supply counts as at least 1, so an empty area gets demand/1 instead of the
+     * maximum: no riders and no drivers is a quiet area (floor), not a crunch.
      * Rounded to 0.1 steps like real surge tiers.
      */
-    private double surge(int demand, int supply) {
-        if (supply == 0) return MAX_SURGE;
-        double ratio = (double) demand / supply;
+    static double surge(int demand, int supply) {
+        double ratio = (double) demand / Math.max(supply, 1);
         double clamped = Math.max(MIN_SURGE, Math.min(MAX_SURGE, ratio));
         return Math.round(clamped * 10.0) / 10.0;
     }

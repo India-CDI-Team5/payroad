@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
-/** HTTP surface for the dashboard (formerly Part C): local demand/supply/surge lookup and a liveness check. */
+/** Liveness check and local demand/supply/surge lookup (api-spec §4.8). */
 @RestController
 public class SupplyDemandController {
 
@@ -26,14 +26,15 @@ public class SupplyDemandController {
         return Map.of("status", "ok");
     }
 
-    @GetMapping("/supply-demand")
-    public Map<String, Object> supplyDemand(@RequestParam double lat, @RequestParam double lon) {
+    @GetMapping("/api/supply-demand")
+    public Map<String, Object> supplyDemand(@RequestParam double lat, @RequestParam double lng) {
         MatchingEngine.Outcome outcome = matching.evaluateAt(
-                new Location(lat, lon), pool.users(), pool.waitingDrivers());
+                new Location(lat, lng), pool.users(), pool.waitingDrivers());
         return Map.of(
                 "demand", outcome.demandInRadius(),
                 "supply", outcome.supplyInRadius(),
-                "alpha", outcome.surge()
+                "surge", outcome.surge(),
+                "radiusKm", MatchingEngine.RADIUS_KM
         );
     }
 }
