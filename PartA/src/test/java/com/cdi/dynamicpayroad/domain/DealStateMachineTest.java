@@ -237,6 +237,22 @@ class DealStateMachineTest {
     }
 
     @Test
+    @DisplayName("(보조) R11 기사 자격·version: 자격 없는 기사는 DRIVER_NOT_AVAILABLE, 낡은 version은 VERSION_CONFLICT, 없는 호가 철회는 BID_NOT_FOUND")
+    void driverEligibilityAndVersion() {
+        Deal d = fresh();
+        DriverAvailability onlyDr1 = id -> id.equals("DR1");
+        Result offline = sm.apply(d, new PlaceBid("DR2", 150, 12.98, 77.60, d.version()), onlyDr1, T0);
+        rejected(offline, ErrorCode.DRIVER_NOT_AVAILABLE);
+
+        d = bid(d, "DR1", 150, 1);
+        rejected(apply(d, new PlaceBid("DR1", 140, 12.98, 77.60, d.version() - 1), 2), ErrorCode.VERSION_CONFLICT);
+        rejected(apply(d, new WithdrawBid("DR2", d.version()), 3), ErrorCode.BID_NOT_FOUND);
+
+        // Rejections leave the deal untouched and report its current version.
+        assertThat(((Result.Rejected) offline).version()).isEqualTo(1);
+    }
+
+    @Test
     @DisplayName("(보조) 첫 호가는 bid.placed, 서버가 픽업 거리·ETA를 계산한다")
     void firstBidEvent() {
         Result.Accepted r = ok(apply(fresh(), new PlaceBid("DR1", 150, 12.98, 77.60, 1L), 1));
