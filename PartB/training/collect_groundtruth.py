@@ -18,7 +18,7 @@ import httpx
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from training.meteo_probe import ARCHIVE_URL, MODEL, weight
+from clients.meteo_client import api_calls, fetch_archive
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
 RAW_DIR = os.path.join(DATA_DIR, "cells_raw")
@@ -34,32 +34,17 @@ def period_tag(start, end):
     return f"{start.isoformat()}_{end.isoformat()}"
 
 
-def fetch_cell(client, lat, lon, start, end):
-    params = {"latitude": f"{lat:.5f}", "longitude": f"{lon:.5f}", "models": MODEL,
-              "start_date": start.isoformat(), "end_date": end.isoformat(),
-              "hourly": VARIABLES, "timezone": "UTC"}
-    for attempt in range(6):
-        r = client.get(ARCHIVE_URL, params=params)
-        if r.status_code == 200:
-            return r.json()
-        if r.status_code == 429:
-            time.sleep(120 * (attempt + 1))
-            continue
-        raise RuntimeError(f"Open-Meteo {r.status_code}: {r.text[:200]}")
-    raise RuntimeError("Open-Meteo kept rate-limiting; try again later")
-
-
 def download(client, cells, start, end):
     folder = os.path.join(RAW_DIR, period_tag(start, end))
     os.makedirs(folder, exist_ok=True)
-    per_cell = weight(1, (end - start).days + 1, len(VARIABLES.split(",")))
+    per_cell = api_calls(1, (end - start).days + 1, len(VARIABLES.split(",")))
     pause = max(60 * per_cell / MAX_CALLS_PER_MIN, 3600 * per_cell / MAX_CALLS_PER_HOUR)
     fetched = 0
     for i, (lat, lon) in enumerate(cells):
         path = os.path.join(folder, f"{i:03d}.json")
         if os.path.exists(path):
             continue
-        data = fetch_cell(client, lat, lon, start, end)
+        data = fetch_archive(client, [(lat, lon)], start, end, hourly=VARIABLES, retries=5)[0]
         if (data["latitude"], data["longitude"]) != (lat, lon):
             raise RuntimeError(f"cell {i}: asked {lat},{lon} but got {data['latitude']},{data['longitude']}")
         with open(path, "w", encoding="utf-8") as f:

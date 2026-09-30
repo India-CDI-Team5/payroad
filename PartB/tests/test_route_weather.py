@@ -17,6 +17,7 @@ ROUTE = {"features": [{"properties": {"summary": {"distance": 8000, "duration": 
 def handler(request):
     if "openrouteservice" in str(request.url):
         return httpx.Response(200, json=ROUTE)
+    assert request.url.params["models"] == "ecmwf_ifs"     # serving uses the training grid
     points = len(request.url.params["latitude"].split(","))
     return httpx.Response(200, json=[FORECAST] * points)
 

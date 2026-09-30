@@ -8,24 +8,15 @@ from diskcache import Cache
 
 import os
 
+from clients.meteo_client import fetch_forecast
 from clients.ors_client import ORS_KEY, fetch_route
 
-WEATHER_URL = "https://api.open-meteo.com/v1/forecast"
 HTTP_TIMEOUT = httpx.Timeout(10.0)
+WEATHER_VARIABLES = "temperature_2m,precipitation,wind_speed_10m"
 
 # On-disk cache shared across restarts and worker processes (ORS routes and forecasts).
 CACHE_DIR = os.path.join(os.path.dirname(__file__), ".cache")
-WEATHER_TTL_SEC = 10 * 60     # forecasts update often
 cache = Cache(CACHE_DIR)
-
-
-# Open-Meteo's grid cell is ~7-8 km (docs/weather-grid-resolution.md), so finer keys only
-# lower the hit rate. 2 decimals (~1.1 km) is coarser than the data but safely finer than the cell.
-WEATHER_KEY_DECIMALS = 2
-
-
-def _key_point(point, decimals):
-    return f"{point[0]:.{decimals}f},{point[1]:.{decimals}f}"
 
 
 def determine_sample_count(distance_km):
@@ -50,27 +41,9 @@ def sample_route(route_coordinates, sample_count):
 
 
 async def fetch_weather(client, sampled_points):
-    key = "weather:" + "|".join(_key_point(p, WEATHER_KEY_DECIMALS) for p in sampled_points)
-    cached = cache.get(key)
-    if cached is not None:
-        return cached
-
-    latitudes = [str(point[1]) for point in sampled_points]
-    longitudes = [str(point[0]) for point in sampled_points]
-
-    weather_url = (
-        f"{WEATHER_URL}"
-        f"?latitude={','.join(latitudes)}"
-        f"&longitude={','.join(longitudes)}"
-        "&hourly=temperature_2m,precipitation,wind_speed_10m"
-        "&forecast_days=2"
-        "&timezone=auto"
-    )
-    response = await client.get(weather_url)
-    response.raise_for_status()
-    data = response.json()
-    cache.set(key, data, expire=WEATHER_TTL_SEC)
-    return data
+    """Forecast at each sampled route point ([lon, lat]), pinned to the training model."""
+    points = [(p[1], p[0]) for p in sampled_points]
+    return await fetch_forecast(client, points, WEATHER_VARIABLES, forecast_days=2, cache=cache)
 
 
 def score_weather(temp, rain, wind):

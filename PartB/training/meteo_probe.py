@@ -18,10 +18,9 @@ from datetime import date, datetime, timedelta, timezone
 
 import httpx
 
+from clients.meteo_client import MODEL, api_calls, fetch_archive
 from training.geo import BBOX, nearest_cell
 
-ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
-MODEL = "ecmwf_ifs"
 CENTER = (12.9716, 77.5946)
 LATTICE_STEP_DEG = 0.04          # finer than the ~0.07 x 0.082 deg cell, so every cell is hit
 CHUNK = 100                      # locations per request
@@ -29,34 +28,16 @@ PLAN_START, PLAN_END = date(2022, 6, 1), date(2025, 11, 30)
 RAIN_MM = 0.1
 DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
 
-# Open-Meteo counting rule (open-meteo.com/en/pricing): >10 variables or >2 weeks per location
-# count fractionally more. Multi-location weighting is not documented, so each location is
-# counted as its own call (conservative).
 calls_used = 0.0
 
 
-def weight(n_locations, days, n_vars=1):
-    return n_locations * max(1.0, days / 14) * max(1.0, n_vars / 10)
-
-
 def archive(client, points, start, end, model=MODEL, variables="precipitation"):
+    """fetch_archive plus a running estimate of the calls this probe has spent."""
     global calls_used
-    days = (end - start).days + 1
-    params = {
-        "latitude": ",".join(f"{p[0]:.5f}" for p in points),
-        "longitude": ",".join(f"{p[1]:.5f}" for p in points),
-        "start_date": start.isoformat(), "end_date": end.isoformat(),
-        "hourly": variables, "timezone": "UTC",
-    }
-    if model:
-        params["models"] = model
-    r = client.get(ARCHIVE_URL, params=params)
-    if r.status_code != 200:
-        raise RuntimeError(f"Open-Meteo {r.status_code}: {r.text[:200]}")
-    calls_used += weight(len(points), days, len(variables.split(",")))
+    data = fetch_archive(client, points, start, end, hourly=variables, model=model)
+    calls_used += api_calls(len(points), (end - start).days + 1, len(variables.split(",")))
     time.sleep(0.3)
-    data = r.json()
-    return data if isinstance(data, list) else [data]
+    return data
 
 
 def availability(client):
@@ -144,7 +125,7 @@ def main():
         report["rain"] = rain_share(client, cells)
 
     days = (PLAN_END - PLAN_START).days + 1
-    per_cell = weight(1, days)
+    per_cell = api_calls(1, days)
     report["collection_budget"] = {
         "period": [PLAN_START.isoformat(), PLAN_END.isoformat()], "days": days,
         "calls_per_cell": round(per_cell, 1), "cells": len(cells),
