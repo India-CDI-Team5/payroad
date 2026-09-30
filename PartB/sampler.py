@@ -3,6 +3,7 @@ import asyncio
 import json
 
 import httpx
+from diskcache import Cache
 
 import os
 from dotenv import load_dotenv
@@ -16,8 +17,24 @@ ROUTE_URL = "https://api.openrouteservice.org/v2/directions/driving-car/geojson"
 WEATHER_URL = "https://api.open-meteo.com/v1/forecast"
 HTTP_TIMEOUT = httpx.Timeout(10.0)
 
+# On-disk cache shared across restarts and worker processes.
+CACHE_DIR = os.path.join(os.path.dirname(__file__), ".cache")
+ROUTE_TTL_SEC = 60 * 60       # roads rarely change
+WEATHER_TTL_SEC = 10 * 60     # forecasts update often
+cache = Cache(CACHE_DIR)
+
+
+def _key_point(point):
+    # ~11 m precision: nearby requests share a cache entry.
+    return f"{point[0]:.4f},{point[1]:.4f}"
+
 
 async def fetch_route(client, start, end, api_key=API_KEY):
+    key = f"route:{_key_point(start)}:{_key_point(end)}"
+    cached = cache.get(key)
+    if cached is not None:
+        return cached
+
     headers = {
         "Authorization": api_key,
         "Content-Type": "application/json"
@@ -28,7 +45,9 @@ async def fetch_route(client, start, end, api_key=API_KEY):
     }
     response = await client.post(ROUTE_URL, json=body, headers=headers)
     response.raise_for_status()
-    return response.json()
+    data = response.json()
+    cache.set(key, data, expire=ROUTE_TTL_SEC)
+    return data
 
 
 def determine_sample_count(distance_km):
@@ -53,6 +72,11 @@ def sample_route(route_coordinates, sample_count):
 
 
 async def fetch_weather(client, sampled_points):
+    key = "weather:" + "|".join(_key_point(p) for p in sampled_points)
+    cached = cache.get(key)
+    if cached is not None:
+        return cached
+
     latitudes = [str(point[1]) for point in sampled_points]
     longitudes = [str(point[0]) for point in sampled_points]
 
@@ -65,7 +89,9 @@ async def fetch_weather(client, sampled_points):
     )
     response = await client.get(weather_url)
     response.raise_for_status()
-    return response.json()
+    data = response.json()
+    cache.set(key, data, expire=WEATHER_TTL_SEC)
+    return data
 
 
 def score_weather(temp, rain, wind):

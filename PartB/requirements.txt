@@ -2,4 +2,5 @@ fastapi==0.139.2
 uvicorn[standard]==0.51.0
 requests==2.34.2
 httpx==0.28.1
+diskcache==5.6.3
 python-dotenv==1.0.1
