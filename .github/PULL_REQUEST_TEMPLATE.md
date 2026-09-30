@@ -10,8 +10,7 @@
 - [ ] 이 변경 사항은 문서 업데이트가 필요합니다
 
 ## 영향을 받는 프로젝트 범위
-- [ ] PartA (Java Backend / Simulation)
-- [ ] PartB (Python / AI Models)
-- [ ] PartC (Web Frontend)
+- [ ] PartA (Java Backend / Web Frontend)
+- [ ] PartB (Python / Route·Weather Data, Model A)
 - [ ] 기타 / Root
 
