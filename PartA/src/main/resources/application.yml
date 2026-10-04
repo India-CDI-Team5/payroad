@@ -1,8 +1,12 @@
 logging:
   pattern:
-    console: "%d{HH:mm:ss} %msg%n"
+    console: "%d{HH:mm:ss.SSS} [%thread] %msg%n"
 
 spring:
+  data:
+    redis:
+      host: localhost
+      port: 6379
   datasource:
     url: jdbc:h2:file:./data/dynamicpayroad;AUTO_SERVER=TRUE
     driver-class-name: org.h2.Driver

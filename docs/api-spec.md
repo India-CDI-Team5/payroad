@@ -1,4 +1,4 @@
-# PayRoad — 흥정 규칙 및 API 명세서 v1.1
+# PayRoad — 흥정 규칙 및 API 명세서 v1.2
 
 > **상태**: 동결 후보 (팀원 합의 필요)
 > **동결 범위**: §2 규칙과 §4~§5 스키마는 **W4 통합 전까지 변경 금지**
@@ -14,6 +14,14 @@
 | 4 | **승객 heartbeat 이탈 처리** 신설 (v1.0 누락) | R5, §8 |
 | 5 | R8 라운드 카운트에서 **철회 제외** 명시 | R8 |
 | 6 | 테스트 시나리오 16종 → **18종** | §8 |
+
+### v1.1 → v1.2 변경 이력
+
+| # | 변경 | 위치 |
+|---|---|---|
+| 1 | **R13 신설** — 기사당 동시 활성 호가 상한 **50건** | R13, §6.1, §6.5 |
+| 2 | 에러 코드 `MAX_ACTIVE_BIDS_EXCEEDED` 추가 | §5.5 |
+| 3 | 테스트 시나리오 18종 → **19종** | §8 |
 
 ---
 
@@ -69,7 +77,7 @@
 
 ---
 
-## 2. 흥정 규칙 R1~R12
+## 2. 흥정 규칙 R1~R13
 
 ### R1. 행위자별 단조성 (Per-Actor Monotonicity)
 
@@ -178,6 +186,28 @@ Redis Lua 스크립트 + `version` CAS로 보장한다.
 ### R12. 승객 취소
 
 승객은 체결 전까지 언제든 취소 가능 → `CANCELLED`. 모든 활성 호가 철회.
+
+### R13. 기사당 동시 활성 호가 상한 🆕 v1.2
+
+기사 한 명이 **동시에** 활성 호가를 걸어둘 수 있는 거래(Deal)는 최대 **50건**이다. 51번째 거래에 호가를 시도하면 거부: `MAX_ACTIVE_BIDS_EXCEEDED`.
+
+> **근거**: R10(기사 이중 체결 차단)은 체결 순간 `driver:{driverId}:deals` Set(§6.1)을 순회하며 그 기사의 다른 활성 호가를 전부 철회한다. 이 순회는 `accept_bid.lua`/`accept_offer.lua` 안에서 실행되는데, Redis는 싱글 스레드로 동작하며 스크립트 실행 중에는 다른 모든 요청이 블로킹된다(§6.5의 판단 기준과 동일). 기사 1명이 걸어둘 수 있는 활성 호가 수에 상한이 없으면 이 반복 횟수가 이론상 무한정 커질 수 있어, "Lua 스크립트 안에는 크기가 예측 불가능한 반복문을 넣지 않는다"는 원칙과 충돌한다. 실사용 규모(대도시 다건 동시 호출 환경)를 감안해 설계 시점에 50건으로 고정한다.
+>
+> `place_bid.lua`는 새 호가를 `driver:{driverId}:deals`에 추가(`SADD`)하기 전에 `SCARD`로 현재 크기를 확인하고, 50 이상이면 거부한 뒤 리턴한다(다른 키 갱신 전에 먼저 검사 — R2 밴드 검증과 같은 위치).
+
+**실측 근거** (`PartA/scripts/redis-bench/`, 로컬 Redis 8.4.0, R10 정리 루프만 분리해 측정):
+
+| 기사당 활성 호가 수(N) | 평균 소요시간 | 베이스라인 대비 순수 루프 비용 |
+|---|---|---|
+| 1 | 7.50ms | 기준 |
+| 50 (R13 상한) | 7.53ms | 약 0.1ms — 베이스라인과 무구별 |
+| 1,000 | 8.11ms | 약 0.7ms |
+| 10,000 | 17.19ms | 약 9.8ms |
+| 100,000 | 75.92ms | 약 68.5ms |
+| 500,000 | 468.63ms | 약 461ms |
+| 1,000,000 | 1044.62ms | **약 1.04초** |
+
+비용은 N에 대략 선형으로 증가한다(Set 순회 + HDEL 반복이므로). N=1,000,000에서는 스크립트 실행 자체가 약 1초 걸리는데, Redis가 싱글 스레드로 동작하므로 이 1초 동안 해당 거래뿐 아니라 **시스템 전체의 모든 요청이 블로킹**된다. N=50(R13 상한)에서는 베이스라인과 구분이 안 될 정도로 비용이 없다. 측정 방법: Lua 내부의 `redis.call('TIME')`은 스크립트 실행 중 결정성 보장을 위해 고정값을 반환하므로 스크립트 자체 계측이 불가능해, 클라이언트(bash+perl) 쪽에서 `EVAL` 호출 전후 벽시계 시간을 측정했다(베이스라인에는 `redis-cli` 프로세스 기동·TCP 연결 오버헤드가 포함됨).
 
 ---
 
@@ -478,6 +508,7 @@ Redis Lua 스크립트 + `version` CAS로 보장한다.
 | `VERSION_CONFLICT` | `version` 불일치 → 클라이언트 재동기화 필요 |
 | `ROUND_LIMIT_EXCEEDED` | R8 |
 | `RATE_LIMIT_EXCEEDED` | 기사당 분당 10회 초과 (R8 악용 방지) 🆕 v1.1 |
+| `MAX_ACTIVE_BIDS_EXCEEDED` | R13 — 기사당 동시 활성 호가 50건 초과 🆕 v1.2 |
 
 ### 5.6 `version` 규약
 
@@ -499,7 +530,7 @@ Redis Lua 스크립트 + `version` CAS로 보장한다.
 | `deal:{dealId}:bids` | Hash | field=`driverId`, value=호가 JSON (기사당 1개 보장) | 300s |
 | `deal:{dealId}:bidsByPrice` | ZSet | score=price, member=`driverId` (정렬 조회용) | 300s |
 | `deal:{dealId}:lastBid` | Hash | field=`driverId`, value=직전 호가 가격 (R1 검증용, 철회 후에도 유지) | 300s |
-| `driver:{driverId}:deals` | Set | 이 기사가 호가를 낸 dealId 집합 (R10 일괄 철회용) | — |
+| `driver:{driverId}:deals` | Set | 이 기사가 호가를 낸 dealId 집합 (R10 일괄 철회용, **R13: SCARD로 50건 상한 검사**) | — |
 | `presence:driver:{id}` | Hash | `status, driverLat, driverLng, lastHeartbeat` | **60s** |
 | `presence:rider:{id}` | Hash | `status, lastHeartbeat, activeDealId` 🆕 | **60s** |
 | `deals:active` | Set | 스윕 잡이 순회할 활성 dealId 집합. **`POST /api/deals` 생성 시 추가**, `MATCHED`/`EXPIRED`/`CANCELLED` 전이 시 제거 🆕 | — |
@@ -615,7 +646,7 @@ public void sweepDisconnected() {
 
 ---
 
-## 8. 테스트 시나리오 (W2, 18종) 🔄 v1.1
+## 8. 테스트 시나리오 (W2, 19종) 🔄 v1.2
 
 | # | 시나리오 | 기대 |
 |---|---|---|
@@ -637,6 +668,7 @@ public void sweepDisconnected() {
 | 16 | 승객 취소 | CANCELLED, 전 호가 철회 |
 | 17 | **승객 heartbeat 끊김 → 스윕 잡 실행** 🆕 | CANCELLED, `reason=RIDER_DISCONNECTED`, 전 호가 철회 |
 | 18 | **철회 후 재입찰** 🆕 | 라운드 1만 증가(철회 미포함), R1은 직전 호가 기준 유지 |
+| 19 | **기사가 이미 50건에 호가를 걸어둔 상태에서 51번째 거래에 호가 시도** 🆕 v1.2 | `MAX_ACTIVE_BIDS_EXCEEDED`, 50건은 그대로 유지 |
 
 ---
 
@@ -674,6 +706,7 @@ public void sweepDisconnected() {
 - [ ] R7 거래 TTL 180초
 - [ ] **R8 라운드 카운트 = 호가 제출 + 승객 오퍼만 (철회 제외)**, 상한 20
 - [ ] R8 악용 방지 = 기사당 분당 10회 rate limit
+- [ ] **R13 기사당 동시 활성 호가 상한 50건** (Lua 반복문 크기 제한 목적)
 
 ### 스키마 (W4까지 동결)
 - [ ] §4 REST 전 엔드포인트·필드
