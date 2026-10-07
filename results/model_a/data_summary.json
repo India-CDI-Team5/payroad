@@ -1,0 +1,88 @@
+{
+  "routes_main": {
+    "n": 400,
+    "by_stratum": {
+      "short": 134,
+      "medium": 133,
+      "long": 133
+    },
+    "U_hist": {
+      "1": 13,
+      "2": 90,
+      "3": 96,
+      "4": 57,
+      "5": 36,
+      "6": 45,
+      "7": 31,
+      "8": 19,
+      "9": 10,
+      "10": 3
+    },
+    "share_U_ge_3": 0.743,
+    "distance_km": {
+      "min": 5.635,
+      "median": 20.515,
+      "max": 59.532
+    }
+  },
+  "routes_holdout": {
+    "n": 100,
+    "by_stratum": {
+      "short": 34,
+      "medium": 33,
+      "long": 33
+    },
+    "U_hist": {
+      "1": 5,
+      "2": 14,
+      "3": 28,
+      "4": 14,
+      "5": 16,
+      "6": 6,
+      "7": 13,
+      "8": 3,
+      "9": 1
+    },
+    "share_U_ge_3": 0.81,
+    "distance_km": {
+      "min": 5.15,
+      "median": 21.204,
+      "max": 56.617
+    }
+  },
+  "cells": {
+    "n": 82,
+    "hours": 30696,
+    "period_utc": [
+      "2022-06-01T00:00",
+      "2025-11-30T23:00"
+    ],
+    "wet_hour_share_gt_0.1": 0.1101
+  },
+  "samples": {
+    "by_split": {
+      "train": 4800,
+      "val": 1600,
+      "test": 1600,
+      "test_holdout": 800
+    },
+    "wet_share_by_split": {
+      "train": 0.404,
+      "val": 0.401,
+      "test": 0.409,
+      "test_holdout": 0.398
+    },
+    "dry_season_share": 0.47,
+    "iso_weeks_by_split": {
+      "train": 110,
+      "val": 37,
+      "test": 36,
+      "test_holdout": 36
+    }
+  },
+  "G1": {
+    "pass": true,
+    "share_U_ge_3": 0.743,
+    "wet_share": 0.404
+  }
+}
