@@ -1,0 +1,155 @@
+{
+  "before": null,
+  "configs": {
+    "K1-identity": {
+      "ard": false,
+      "kernel": "rbf",
+      "nll": 3121.58840624143,
+      "params": {
+        "ls_s": 3.0252383308587714,
+        "sigma_f": 0.4488807056744004,
+        "sigma_n": 0.16171252251952245
+      },
+      "seconds": 13.140621322999777,
+      "transform": "identity"
+    },
+    "K1-log1p": {
+      "ard": false,
+      "kernel": "rbf",
+      "nll": -45059.015875414465,
+      "params": {
+        "ls_s": 3.043845317632935,
+        "sigma_f": 0.1677818324938688,
+        "sigma_n": 0.05960422335550506
+      },
+      "seconds": 11.103766017999988,
+      "transform": "log1p"
+    },
+    "K2-identity": {
+      "ard": false,
+      "kernel": "matern05",
+      "nll": 1808.9334661633022,
+      "params": {
+        "ls_s": 7.784382992796378,
+        "sigma_f": 0.5137880942388234,
+        "sigma_n": 0.00010000000000000009
+      },
+      "seconds": 30.946534807000262,
+      "transform": "identity"
+    },
+    "K2-log1p": {
+      "ard": false,
+      "kernel": "matern05",
+      "nll": -46302.51754311465,
+      "params": {
+        "ls_s": 7.939200152842822,
+        "sigma_f": 0.1914220150239826,
+        "sigma_n": 0.0040599023153478795
+      },
+      "seconds": 25.2692580920002,
+      "transform": "log1p"
+    },
+    "K3-identity": {
+      "ard": false,
+      "kernel": "matern15",
+      "nll": 1943.022973320116,
+      "params": {
+        "ls_s": 4.597630063697573,
+        "sigma_f": 0.4810457831443369,
+        "sigma_n": 0.1412517455577018
+      },
+      "seconds": 16.679877276000298,
+      "transform": "identity"
+    },
+    "K3-log1p": {
+      "ard": false,
+      "kernel": "matern15",
+      "nll": -46223.17094995703,
+      "params": {
+        "ls_s": 4.663914203142959,
+        "sigma_f": 0.1798366323846807,
+        "sigma_n": 0.05219664372381892
+      },
+      "seconds": 12.82610835200012,
+      "transform": "log1p"
+    },
+    "K4-identity": {
+      "ard": false,
+      "kernel": "matern25",
+      "nll": 2252.9499255586557,
+      "params": {
+        "ls_s": 3.8851422109028486,
+        "sigma_f": 0.4678620527559618,
+        "sigma_n": 0.1502748950272052
+      },
+      "seconds": 17.433372585000143,
+      "transform": "identity"
+    },
+    "K4-log1p": {
+      "ard": false,
+      "kernel": "matern25",
+      "nll": -45922.53209634573,
+      "params": {
+        "ls_s": 3.9340625733086974,
+        "sigma_f": 0.17498702318843568,
+        "sigma_n": 0.055488203667596006
+      },
+      "seconds": 13.654274874999828,
+      "transform": "log1p"
+    },
+    "K5-identity": {
+      "ard": true,
+      "kernel": "matern15",
+      "nll": 1874.6863942951634,
+      "params": {
+        "ls_s": 6.551221194612643,
+        "ls_t": 7.741755227892424,
+        "sigma_f": 0.4773989634249393,
+        "sigma_n": 0.14085518004000974
+      },
+      "seconds": 29.020891398999993,
+      "transform": "identity"
+    },
+    "K5-log1p": {
+      "ard": true,
+      "kernel": "matern15",
+      "nll": -46332.19964340736,
+      "params": {
+        "ls_s": 7.470188057237049,
+        "ls_t": 7.097953305900695,
+        "sigma_f": 0.17817140035836762,
+        "sigma_n": 0.05184654623607383
+      },
+      "seconds": 32.87317044099973,
+      "transform": "log1p"
+    },
+    "K6-identity": {
+      "ard": true,
+      "kernel": "rbf",
+      "nll": 3057.523903850498,
+      "params": {
+        "ls_s": 4.123272480275491,
+        "ls_t": 5.458279398735332,
+        "sigma_f": 0.44592547763684753,
+        "sigma_n": 0.16189209255624687
+      },
+      "seconds": 33.96151679400009,
+      "transform": "identity"
+    },
+    "K6-log1p": {
+      "ard": true,
+      "kernel": "rbf",
+      "nll": -45147.14660865383,
+      "params": {
+        "ls_s": 4.334484992291751,
+        "ls_t": 5.175127822847571,
+        "sigma_f": 0.16647474341422602,
+        "sigma_n": 0.05951516466987055
+      },
+      "seconds": 31.510784892000174,
+      "transform": "log1p"
+    }
+  },
+  "n_samples": 1938,
+  "seed": 42
+}
