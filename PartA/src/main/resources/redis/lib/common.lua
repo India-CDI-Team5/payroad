@@ -117,6 +117,32 @@ local function driver_online(driverId, nowMs)
     return redis.call('SCARD', driver_deals_key(driverId)) > 0
 end
 
+-- §1.5 참여 중 (R5·R11). RIDER = presence:rider:{id}의 activeDealId 거래가 있고 OPEN/NEGOTIATING
+-- (물리 삭제됐으면 false). DRIVER = 활성 호가 1건 이상 또는 MATCHED. nowMs는 보지 않는다(만료는 스윕이 판정).
+local function engaged(actorType, actorId, nowMs)
+    if actorType == 'DRIVER' then
+        if redis.call('SCARD', driver_deals_key(actorId)) > 0 then return true end
+        return redis.call('HGET', driver_state_key(actorId), 'status') == 'MATCHED'
+    end
+    local dealId = redis.call('HGET', 'presence:rider:' .. actorId, 'activeDealId')
+    if not dealId then return false end
+    local status = redis.call('HGET', deal_key(dealId), 'status')
+    return status == 'OPEN' or status == 'NEGOTIATING'
+end
+
+-- presence 삭제 (§6.5 3단계, presence_remove.lua): 해시, presence:expiry, GEO 위치.
+local function remove_presence(actorType, actorId)
+    if actorType == 'DRIVER' then
+        redis.call('DEL', 'presence:driver:' .. actorId)
+        redis.call('ZREM', 'presence:expiry', 'D:' .. actorId)
+        redis.call('ZREM', 'geo:drivers', actorId)
+    else
+        redis.call('DEL', 'presence:rider:' .. actorId)
+        redis.call('ZREM', 'presence:expiry', 'R:' .. actorId)
+        redis.call('ZREM', 'geo:riders', actorId)
+    end
+end
+
 -- 이벤트 (필드 이름은 §5.3 그대로, 실수는 '%.17g' 문자열, 정수는 숫자).
 local function ev_bid(name, dealId, bid, lowest, bidderCount, pendingSide, round, version)
     return { event = name, dealId = dealId, bid = bid, lowestBidPrice = num_or_null(lowest),

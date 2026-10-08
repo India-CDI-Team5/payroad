@@ -1,8 +1,6 @@
 package com.cdi.dynamicpayroad.web;
 
-import com.cdi.dynamicpayroad.engine.MatchingEngine;
-import com.cdi.dynamicpayroad.model.Location;
-import com.cdi.dynamicpayroad.pool.OnlinePool;
+import com.cdi.dynamicpayroad.market.SupplyDemandService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -13,12 +11,10 @@ import java.util.Map;
 @RestController
 public class SupplyDemandController {
 
-    private final OnlinePool pool;
-    private final MatchingEngine matching;
+    private final SupplyDemandService supplyDemand;
 
-    public SupplyDemandController(OnlinePool pool, MatchingEngine matching) {
-        this.pool = pool;
-        this.matching = matching;
+    public SupplyDemandController(SupplyDemandService supplyDemand) {
+        this.supplyDemand = supplyDemand;
     }
 
     @GetMapping("/health")
@@ -28,13 +24,12 @@ public class SupplyDemandController {
 
     @GetMapping("/api/supply-demand")
     public Map<String, Object> supplyDemand(@RequestParam double lat, @RequestParam double lng) {
-        MatchingEngine.Outcome outcome = matching.evaluateAt(
-                new Location(lat, lng), pool.users(), pool.waitingDrivers());
+        SupplyDemandService.Snapshot s = supplyDemand.at(lat, lng);
         return Map.of(
-                "demand", outcome.demandInRadius(),
-                "supply", outcome.supplyInRadius(),
-                "surge", outcome.surge(),
-                "radiusKm", MatchingEngine.RADIUS_KM
+                "demand", s.demand(),
+                "supply", s.supply(),
+                "surge", s.surge(),
+                "radiusKm", SupplyDemandService.RADIUS_KM
         );
     }
 }

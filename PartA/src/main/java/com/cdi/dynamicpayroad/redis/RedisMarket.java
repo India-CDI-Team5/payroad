@@ -6,10 +6,14 @@ import com.cdi.dynamicpayroad.domain.DealRules;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.lettuce.core.GeoArgs;
+import io.lettuce.core.GeoSearch;
+import io.lettuce.core.GeoWithin;
 import io.lettuce.core.api.sync.RedisCommands;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -103,6 +107,39 @@ public final class RedisMarket {
         JsonNode root = parser.tree(scripts.call("presence_upsert", ms(now), actorType, actorId,
                 Long.toString(ttl.toMillis()), lat == null ? "" : d(lat), lng == null ? "" : d(lng)));
         return root.path("ok").asBoolean(false) ? root.path("status").asText() : null;
+    }
+
+    /**
+     * Read-only driver status (§4.5): MATCHED when driver:{id}:state says so, ONLINE while the
+     * presence has not expired, otherwise OFFLINE. Does not extend the presence.
+     */
+    public String driverStatus(String driverId, Instant now) {
+        if ("MATCHED".equals(cmd.hget("driver:" + driverId + ":state", "status"))) return "MATCHED";
+        String exp = cmd.hget("presence:driver:" + driverId, "expiresAt");
+        return exp != null && Long.parseLong(exp) > now.toEpochMilli() ? "ONLINE" : "OFFLINE";
+    }
+
+    /**
+     * presence_remove.lua: log a DRIVER or RIDER off unless engaged (§1.5, R5).
+     *
+     * @return true when the presence was removed, false when the actor is engaged and stays
+     */
+    public boolean removePresence(String actorType, String actorId, Instant now) {
+        JsonNode root = parser.tree(scripts.call("presence_remove", ms(now), actorType, id(actorId)));
+        return root.path("removed").asBoolean(false);
+    }
+
+    /** GEOSEARCH key FROMLONLAT lng lat BYRADIUS radiusKm km: how many members lie within the radius. */
+    public int countNearby(String geoKey, double lat, double lng, double radiusKm) {
+        return cmd.geosearch(geoKey, GeoSearch.fromCoordinates(lng, lat),
+                GeoSearch.byRadius(radiusKm, GeoArgs.Unit.km)).size();
+    }
+
+    /** GEOSEARCH geo:deals FROMLONLAT lng lat BYRADIUS radiusKm km ASC COUNT limit: deal ids, nearest first (§4.4). */
+    public List<String> nearbyDeals(double lat, double lng, double radiusKm, int limit) {
+        return cmd.geosearch("geo:deals", GeoSearch.fromCoordinates(lng, lat),
+                        GeoSearch.byRadius(radiusKm, GeoArgs.Unit.km), new GeoArgs().withCount(limit).asc())
+                .stream().map(GeoWithin::getMember).toList();
     }
 
     /** Wipes this market's DB. Refused on DB 0, the live service's. */

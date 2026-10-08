@@ -1,6 +1,7 @@
 package com.cdi.dynamicpayroad.deal;
 
 import com.cdi.dynamicpayroad.model.DealHistory;
+import com.cdi.dynamicpayroad.presence.PresenceService;
 import com.cdi.dynamicpayroad.redis.RedisMarket;
 import com.cdi.dynamicpayroad.repository.DealHistoryRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,6 +33,7 @@ class DealFlowTest {
     @Autowired TestRestTemplate rest;
     @Autowired DealHistoryRepository history;
     @Autowired RedisMarket redisMarket;
+    @Autowired PresenceService presence;
 
     /** The context talks to Redis DB 15 (build.gradle); every test starts from an empty DB. */
     @BeforeEach
@@ -52,6 +54,10 @@ class DealFlowTest {
         assertThat(deal).containsEntry("status", "OPEN").containsEntry("pendingSide", "DRIVER");
         assertThat(version(deal)).isEqualTo(1);
         assertThat((Map<String, Object>) deal.get("priceBand")).containsKeys("min", "max");
+
+        // R11: only registered (ONLINE) drivers may bid.
+        presence.registerDriver("DR042", 12.9401, 77.6102);
+        presence.registerDriver("DR017", 12.9720, 77.5951);
 
         try (StompProbe probe = new StompProbe(port)) {
             BlockingQueue<Map<String, Object>> events = probe.subscribe("/topic/deal/" + dealId);

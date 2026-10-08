@@ -22,3 +22,7 @@ spring:
 
 ors:
   api-key: ${ORS_API_KEY:}
+
+presence:
+  # R5: heartbeat TTL. Engaged users (api-spec §1.5) are kept past it by sweep.lua step 3.
+  ttl-sec: 60

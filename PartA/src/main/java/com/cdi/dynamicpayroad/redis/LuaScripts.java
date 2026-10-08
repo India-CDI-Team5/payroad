@@ -23,7 +23,7 @@ public final class LuaScripts {
     /** Fixed list, read by name from the classpath (works inside a jar; no wildcard lookup). */
     public static final List<String> NAMES = List.of(
             "create_deal", "get_deal", "place_bid", "withdraw_bid", "post_offer",
-            "accept_bid", "accept_offer", "cancel_deal", "sweep", "presence_upsert");
+            "accept_bid", "accept_offer", "cancel_deal", "sweep", "presence_upsert", "presence_remove");
 
     private static final String[] NO_KEYS = new String[0];
 

@@ -1,6 +1,7 @@
 package com.cdi.dynamicpayroad.deal;
 
 import com.cdi.dynamicpayroad.model.DealHistory;
+import com.cdi.dynamicpayroad.presence.PresenceService;
 import com.cdi.dynamicpayroad.redis.RedisMarket;
 import com.cdi.dynamicpayroad.repository.DealHistoryRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -58,6 +59,7 @@ class DealServiceLiveTest {
     @Autowired DealHistoryRepository history;
     @Autowired MovableClock clock;
     @Autowired RedisMarket redisMarket;
+    @Autowired PresenceService presence;
 
     @BeforeEach
     void flushRedis() {
@@ -80,6 +82,7 @@ class DealServiceLiveTest {
     @Test
     void rejectionGoesOnlyToTheSender() throws Exception {
         String dealId = createDeal("R100");
+        presence.registerDriver("DR1", 12.98, 77.60);   // R11: only registered drivers may bid
         try (StompProbe driver = new StompProbe(port); StompProbe watcher = new StompProbe(port)) {
             BlockingQueue<Map<String, Object>> driverErrors = driver.subscribe("/user/queue/errors");
             BlockingQueue<Map<String, Object>> watcherErrors = watcher.subscribe("/user/queue/errors");
