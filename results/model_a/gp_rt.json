@@ -1,0 +1,19 @@
+{
+  "before": "2025-01-01",
+  "configs": {
+    "K2-log1p": {
+      "ard": false,
+      "kernel": "matern05",
+      "nll": -31916.377947428966,
+      "params": {
+        "ls_s": 7.829300378132578,
+        "sigma_f": 0.19447332508794765,
+        "sigma_n": 0.0038483416791902573
+      },
+      "seconds": 17.96964796200018,
+      "transform": "log1p"
+    }
+  },
+  "n_samples": 1365,
+  "seed": 42
+}

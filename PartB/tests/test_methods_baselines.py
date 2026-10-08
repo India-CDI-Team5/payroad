@@ -54,9 +54,3 @@ def test_b0_uses_one_call_and_fills_with_the_observed_mean():
     assert r.obs_idx.tolist() == [0, 1, 6, 7]
     assert r.y_hat[[0, 1, 6, 7]].tolist() == [0.0, 0.2, 0.3, 0.1]
     assert r.y_hat[[2, 3, 4, 5]] == pytest.approx([0.15] * 4)
-
-
-def test_gp_methods_wait_for_card_b4():
-    for m in ("M1", "M2"):
-        with pytest.raises(NotImplementedError, match="B4"):
-            run(m, oracle(), S, T, k=2)
