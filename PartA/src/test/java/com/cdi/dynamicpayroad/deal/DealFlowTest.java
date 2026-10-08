@@ -1,7 +1,9 @@
 package com.cdi.dynamicpayroad.deal;
 
 import com.cdi.dynamicpayroad.model.DealHistory;
+import com.cdi.dynamicpayroad.redis.RedisMarket;
 import com.cdi.dynamicpayroad.repository.DealHistoryRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -19,7 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * The full path the front end takes: create deal (REST) -> two bids (STOMP) -> rider picks the
- * pricier one (STOMP) -> MATCHED, with the rules of domain/ applied and a DealHistory row written.
+ * pricier one (STOMP) -> MATCHED, with the Lua rules (redis/*.lua) applied and a DealHistory row written.
  */
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
@@ -29,6 +31,13 @@ class DealFlowTest {
     @LocalServerPort int port;
     @Autowired TestRestTemplate rest;
     @Autowired DealHistoryRepository history;
+    @Autowired RedisMarket redisMarket;
+
+    /** The context talks to Redis DB 15 (build.gradle); every test starts from an empty DB. */
+    @BeforeEach
+    void flushRedis() {
+        redisMarket.flushDb();
+    }
 
     @Test
     @SuppressWarnings("unchecked")

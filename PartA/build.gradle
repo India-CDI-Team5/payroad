@@ -15,6 +15,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-websocket'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
     runtimeOnly 'com.h2database:h2'
 
     // JUnit 5, AssertJ and Mockito come with the starter, at versions managed by Spring Boot.
@@ -24,4 +25,10 @@ dependencies {
 
 test {
     useJUnitPlatform()
+    // api-spec §6.1: JUnit uses Redis DB 15. Override with -PtestRedisUrl=redis://host:port/15.
+    def testRedis = project.findProperty('testRedisUrl') ?: 'redis://localhost:6379/15'
+    systemProperty 'spring.data.redis.url', testRedis
+    systemProperty 'payroad.test.redis-url', testRedis
+    systemProperty 'deal.sweeper.enabled', 'false'
+    systemProperty 'spring.datasource.url', 'jdbc:h2:mem:payroad-test;DB_CLOSE_DELAY=-1'
 }

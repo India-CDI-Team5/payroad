@@ -1,10 +1,15 @@
 package com.cdi.dynamicpayroad.deal;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-/** Fires offer TTL (R6) and deal TTL (R7) once a second; deals also refuse actions past their TTL in between. */
+/**
+ * Runs sweep.lua once a second (api-spec §6.5): deal TTL (R7), offer TTL (R6), physical deletion.
+ * Deals also refuse actions past their TTL in between. Off in JUnit unless a test turns it on.
+ */
 @Component
+@ConditionalOnProperty(name = "deal.sweeper.enabled", havingValue = "true", matchIfMissing = true)
 public class ExpirySweeper {
 
     private final DealService deals;
@@ -15,6 +20,6 @@ public class ExpirySweeper {
 
     @Scheduled(fixedRate = 1000)
     public void sweep() {
-        deals.tick();
+        deals.sweep();
     }
 }

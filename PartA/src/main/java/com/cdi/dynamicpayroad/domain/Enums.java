@@ -11,10 +11,10 @@ public final class Enums {
     public enum MatchPath { RIDER_PICKED_BID, DRIVER_TOOK_OFFER }
 
     /** Why a deal ended without a match (§5.3 {@code deal.expired}). */
-    public enum EndReason { TTL, ROUND_LIMIT, CANCELLED_BY_RIDER, RIDER_DISCONNECTED }
+    public enum EndReason { TTL, ROUND_LIMIT, CANCELLED_BY_RIDER }
 
     /** Why a bid left the book (§5.3 {@code bid.withdrawn}). */
-    public enum WithdrawReason { BY_DRIVER, DRIVER_DISCONNECTED, DRIVER_MATCHED_ELSEWHERE }
+    public enum WithdrawReason { BY_DRIVER, DRIVER_MATCHED_ELSEWHERE }
 
     /** Driver presence as the market sees it (R11). Absent from the market = offline. */
     public enum DriverStatus { ONLINE, MATCHED }

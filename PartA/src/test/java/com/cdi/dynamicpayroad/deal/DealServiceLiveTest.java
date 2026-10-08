@@ -1,7 +1,9 @@
 package com.cdi.dynamicpayroad.deal;
 
 import com.cdi.dynamicpayroad.model.DealHistory;
+import com.cdi.dynamicpayroad.redis.RedisMarket;
 import com.cdi.dynamicpayroad.repository.DealHistoryRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -12,6 +14,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.test.annotation.DirtiesContext;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -25,10 +28,15 @@ import java.util.concurrent.TimeUnit;
 import static com.cdi.dynamicpayroad.deal.StompProbe.next;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Error routing, cancel, expiry and retention of the live service, with time moved by a test clock. */
+/**
+ * Error routing, cancel, expiry and retention of the live service, with time moved by a test clock.
+ * The only test class that runs the 1 s sweeper; its context is closed afterwards so the sweeper
+ * does not keep running against Redis DB 15 during other tests.
+ */
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-        properties = "spring.datasource.url=jdbc:h2:mem:deallive")
+        properties = {"spring.datasource.url=jdbc:h2:mem:deallive", "deal.sweeper.enabled=true"})
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class DealServiceLiveTest {
 
     /** A clock the test can move; the expiry sweeper reads it every second. */
@@ -49,6 +57,12 @@ class DealServiceLiveTest {
     @Autowired TestRestTemplate rest;
     @Autowired DealHistoryRepository history;
     @Autowired MovableClock clock;
+    @Autowired RedisMarket redisMarket;
+
+    @BeforeEach
+    void flushRedis() {
+        redisMarket.flushDb();
+    }
 
     @SuppressWarnings("unchecked")
     String createDeal(String riderId) {

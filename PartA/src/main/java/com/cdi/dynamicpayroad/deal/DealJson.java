@@ -4,6 +4,7 @@ import com.cdi.dynamicpayroad.domain.Deal;
 import com.cdi.dynamicpayroad.domain.DealEvent;
 import com.cdi.dynamicpayroad.domain.DealRules;
 import com.cdi.dynamicpayroad.domain.ErrorCode;
+import com.cdi.dynamicpayroad.redis.RedisMarket;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -14,15 +15,17 @@ final class DealJson {
     private DealJson() {}
 
     /** §4.1 / §4.2. Route and weather fields stay placeholders until Part B /quote is wired in (milestone 10/5). */
-    static Map<String, Object> snapshot(Deal d, DealService.Meta meta, DealRules rules) {
+    static Map<String, Object> snapshot(RedisMarket.DealSnapshot s, DealRules rules) {
+        Deal d = s.deal();
+        Map<String, Object> meta = s.meta();
         DealRules.PriceBand band = rules.band(d.basePrice());
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("dealId", d.dealId());
         m.put("status", d.status().name());
         m.put("basePrice", round2(d.basePrice()));
         m.put("priceBand", Map.of("min", round2(band.min()), "max", round2(band.max())));
-        m.put("distanceKm", round2(meta.distanceKm()));
-        m.put("durationMin", round2(meta.durationMin()));
+        m.put("distanceKm", round2(metaDouble(meta, "distanceKm")));
+        m.put("durationMin", round2(metaDouble(meta, "durationMin")));
         m.put("avgRainMm", null);
         m.put("weatherFactor", 1.0);
         m.put("routePolyline", null);
@@ -114,6 +117,11 @@ final class DealJson {
         m.put("bidderCount", bidders);
         m.put("pendingSide", pending);
         m.put("round", round);
+    }
+
+    private static double metaDouble(Map<String, Object> meta, String key) {
+        Object v = meta.get(key);
+        return v instanceof Number n ? n.doubleValue() : 0.0;
     }
 
     static double round2(double v) {

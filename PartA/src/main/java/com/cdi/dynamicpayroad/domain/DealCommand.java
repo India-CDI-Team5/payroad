@@ -23,7 +23,4 @@ public sealed interface DealCommand {
 
     /** DELETE /api/deals/{id} (R12). */
     record Cancel(String riderId) implements DealCommand {}
-
-    /** Periodic check for offer TTL (R6) and deal TTL (R7). Carries no data: the time is the apply() argument. */
-    record Tick() implements DealCommand {}
 }
