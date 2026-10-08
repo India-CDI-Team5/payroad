@@ -1,0 +1,15 @@
+{
+  "version": "2026-10-08",
+  "source": "https://www.thehansindia.com/bengaluru/bengaluru-auto-rickshaw-fares-increased-from-august-1-new-rates-announced-988249",
+  "baseFee": 0,
+  "perKm": 18,
+  "betaCoef": 0.15,
+  "betaCap": 0.5,
+  "uncertaintyWeight": 0.5,
+  "surchargeThreshold": 1.2,
+  "surgeMin": 0.7,
+  "surgeMax": 3.0,
+  "betaSensitivity": [0.10, 0.15, 0.20, 0.30],
+  "servingBudgetRatio": 0.5,
+  "servingDraws": 200
+}

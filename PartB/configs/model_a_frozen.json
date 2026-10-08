@@ -1,0 +1,75 @@
+{
+  "frozen_utc": "2026-10-08T07:15:41Z",
+  "gp_interpolator_sha256": "b2b8e07a2b62040de917d522c4d76cb5c482c2754bf8e66a9bdc279485491e56",
+  "gp_rt_sha256": "4c51d6cd399a75065932aba02a2f489e05b532a85af6042790ba60d9f7e3bdbd",
+  "pricing_constants_sha256": "53a961d1832e1d68dbed951bfeb2fe7c7a67ad333cefccbbd4e7780d11cef850",
+  "rhos": [
+    0.25,
+    0.5,
+    0.75,
+    1.0
+  ],
+  "k_abs": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8
+  ],
+  "methods": [
+    "B0",
+    "B1",
+    "B1-L",
+    "B2",
+    "B2-L",
+    "M1",
+    "M2"
+  ],
+  "subsets": [
+    "MAIN",
+    "ALL",
+    "LONG",
+    "HOLDOUT",
+    "RT"
+  ],
+  "draws": 500,
+  "draw_seed_rule": "42+sample_id",
+  "pairs": [
+    [
+      "B2",
+      "B1"
+    ],
+    [
+      "M1",
+      "B2-L"
+    ],
+    [
+      "M1",
+      "B1"
+    ],
+    [
+      "M2",
+      "M1"
+    ]
+  ],
+  "pair_rhos": [
+    0.25,
+    0.5,
+    0.75
+  ],
+  "test": "wilcoxon two-sided zero_method=wilcox",
+  "correction": "holm",
+  "alpha": 0.05,
+  "bootstrap": {
+    "unit": "iso_week",
+    "B": 2000,
+    "seed": 42,
+    "ci": "percentile"
+  },
+  "uncertainty_bins": 5,
+  "saving_rho_grid_step": 0.05,
+  "beta_compare_rho": 0.5
+}

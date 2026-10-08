@@ -1,0 +1,6 @@
+# Files whose SHA-256 is recorded in PartB/configs/model_a_frozen.json (card B5): keep their bytes
+# identical on every checkout, whatever core.autocrlf says.
+PartB/models/gp_interpolator.json text eol=lf
+results/model_a/gp_rt.json text eol=lf
+config/pricing-constants.json text eol=lf
+PartB/configs/model_a_frozen.json text eol=lf
