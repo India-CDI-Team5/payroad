@@ -23,6 +23,18 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
+// Two classes have main() now; bootJar must start the web service.
+springBoot {
+    mainClass = 'com.cdi.dynamicpayroad.DynamicPayroadApplication'
+}
+
+// Experiment runner (card C1): ./gradlew runExperiment --args="--scenario smoke --seed 1". Needs Redis (DB 14).
+tasks.register('runExperiment', JavaExec) {
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.cdi.dynamicpayroad.experiment.ExperimentRunner'
+    workingDir = projectDir
+}
+
 test {
     useJUnitPlatform()
     // api-spec §6.1: JUnit uses Redis DB 15. Override with -PtestRedisUrl=redis://host:port/15.
