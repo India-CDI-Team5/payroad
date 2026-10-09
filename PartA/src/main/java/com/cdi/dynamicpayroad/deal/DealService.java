@@ -5,10 +5,10 @@ import com.cdi.dynamicpayroad.domain.DealCommand;
 import com.cdi.dynamicpayroad.domain.DealEvent;
 import com.cdi.dynamicpayroad.domain.DealRules;
 import com.cdi.dynamicpayroad.domain.ErrorCode;
-import com.cdi.dynamicpayroad.domain.Geo;
 import com.cdi.dynamicpayroad.market.SupplyDemandService;
 import com.cdi.dynamicpayroad.model.DealHistory;
 import com.cdi.dynamicpayroad.presence.PresenceService;
+import com.cdi.dynamicpayroad.pricing.QuoteClient;
 import com.cdi.dynamicpayroad.redis.MarketOutcome;
 import com.cdi.dynamicpayroad.redis.RedisMarket;
 import com.cdi.dynamicpayroad.redis.RedisMarket.DealSnapshot;
@@ -37,10 +37,6 @@ public class DealService {
 
     private static final Logger log = LoggerFactory.getLogger(DealService.class);
 
-    // Placeholder pricing until Part B's /quote provides the base price (milestone 10/5).
-    private static final double FLAG_PRICE = 30.0;
-    private static final double PER_KM_PRICE = 15.0;
-
     /** Result of a REST-style call. {@code error} is set only when {@code outcome} is REJECTED. */
     public record Reply(Outcome outcome, Map<String, Object> body, ErrorCode error) {
         public enum Outcome { OK, NOT_FOUND, REJECTED }
@@ -50,47 +46,55 @@ public class DealService {
     private final DealHistoryRepository history;
     private final PresenceService presence;
     private final SupplyDemandService supplyDemand;
+    private final QuoteClient quoteClient;
     private final RedisMarket redisMarket;
     private final Clock clock;
     private final String experimentTag;
 
     public DealService(SimpMessagingTemplate broker, DealHistoryRepository history, PresenceService presence,
-                       SupplyDemandService supplyDemand, RedisMarket redisMarket, Clock clock,
+                       SupplyDemandService supplyDemand, QuoteClient quoteClient, RedisMarket redisMarket,
+                       Clock clock,
                        @Value("${deal.experiment-tag:live}") String experimentTag) {
         this.broker = broker;
         this.history = history;
         this.presence = presence;
         this.supplyDemand = supplyDemand;
+        this.quoteClient = quoteClient;
         this.redisMarket = redisMarket;
         this.clock = clock;
         this.experimentTag = experimentTag;
     }
 
     /**
-     * §4.1: open a deal at a placeholder base price. The rider is registered first (at the origin),
-     * so the demand/supply/surge snapshot in meta counts them (§4.8).
+     * §4.1: presence → demand/supply snapshot → Part B /quote → create_deal.lua. The rider is
+     * registered first (at the origin), so the snapshot counts them (§4.8). The /quote wait (up to
+     * 2 s, then the fallback price) holds no lock; Redis is only touched before and after it.
      */
     public Map<String, Object> create(String riderId, double originLat, double originLng,
                                       double destLat, double destLng) {
         presence.registerRider(riderId, originLat, originLng);
         SupplyDemandService.Snapshot local = supplyDemand.at(originLat, originLng);
+        QuoteClient.Quote quote = quoteClient.quote(originLat, originLng, destLat, destLng, clock.instant(),
+                local.demand(), local.supply());
         Instant now = clock.instant();
         DealRules rules = redisMarket.rules();
-        double distanceKm = Geo.haversineKm(originLat, originLng, destLat, destLng) * rules.detourFactor();
-        double durationMin = distanceKm / rules.avgSpeedKmh() * 60;
-        double basePrice = DealJson.round2(FLAG_PRICE + PER_KM_PRICE * distanceKm);
+        double basePrice = quote.basePrice();
 
         String dealId = "D-" + UUID.randomUUID().toString().substring(0, 8);
         Map<String, Object> meta = new LinkedHashMap<>();
         meta.put("destLat", destLat);
         meta.put("destLng", destLng);
-        meta.put("distanceKm", distanceKm);
-        meta.put("durationMin", durationMin);
+        meta.put("distanceKm", quote.distanceKm());
+        meta.put("durationMin", quote.durationMin());
+        meta.put("avgRainMm", quote.avgRainMm());
+        meta.put("weatherFactor", quote.weatherFactor());
+        meta.put("routePolyline", quote.routePolyline());
+        meta.put("priceSource", quote.priceSource());
         meta.put("demand", local.demand());
         meta.put("supply", local.supply());
         meta.put("surge", local.surge());
         redisMarket.createDeal(dealId, riderId, originLat, originLng, basePrice, meta, now);
-        log.info("DEAL CREATED {} rider={} base={}", dealId, riderId, basePrice);
+        log.info("DEAL CREATED {} rider={} base={} source={}", dealId, riderId, basePrice, quote.priceSource());
         DealSnapshot snapshot = redisMarket.snapshot(dealId, now)
                 .orElseThrow(() -> new IllegalStateException("deal vanished right after creation: " + dealId));
         return DealJson.snapshot(snapshot, rules);

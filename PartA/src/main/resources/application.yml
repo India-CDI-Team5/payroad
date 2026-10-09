@@ -23,6 +23,15 @@ spring:
 ors:
   api-key: ${ORS_API_KEY:}
 
+quote:
+  # Part B /quote (plan v6 §3.4). No 200 within the timeout → fallback price, priceSource FALLBACK.
+  base-url: http://127.0.0.1:8000
+  timeout-ms: 2000
+
+pricing:
+  # The only source of the pricing constants (card B5, frozen). Relative to PartA/.
+  constants-path: ../config/pricing-constants.json
+
 presence:
   # R5: heartbeat TTL. Engaged users (api-spec §1.5) are kept past it by sweep.lua step 3.
   ttl-sec: 60

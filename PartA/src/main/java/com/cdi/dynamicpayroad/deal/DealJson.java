@@ -14,7 +14,7 @@ final class DealJson {
 
     private DealJson() {}
 
-    /** §4.1 / §4.2. Route and weather fields stay placeholders until Part B /quote is wired in (milestone 10/5). */
+    /** §4.1 / §4.2. Route, weather and priceSource come from the deal's meta (Part B /quote or the fallback). */
     static Map<String, Object> snapshot(RedisMarket.DealSnapshot s, DealRules rules) {
         Deal d = s.deal();
         Map<String, Object> meta = s.meta();
@@ -26,9 +26,10 @@ final class DealJson {
         m.put("priceBand", Map.of("min", round2(band.min()), "max", round2(band.max())));
         m.put("distanceKm", round2(metaDouble(meta, "distanceKm")));
         m.put("durationMin", round2(metaDouble(meta, "durationMin")));
-        m.put("avgRainMm", null);
-        m.put("weatherFactor", 1.0);
-        m.put("routePolyline", null);
+        m.put("avgRainMm", meta.get("avgRainMm"));
+        m.put("weatherFactor", meta.get("weatherFactor"));
+        m.put("priceSource", meta.get("priceSource"));
+        m.put("routePolyline", meta.get("routePolyline"));
         m.put("bids", d.bidsAscending().stream().map(DealJson::bid).toList());
         m.put("riderOffer", d.offer() == null ? null : Map.of(
                 "price", d.offer().price(),
