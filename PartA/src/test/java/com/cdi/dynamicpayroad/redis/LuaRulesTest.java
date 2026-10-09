@@ -47,7 +47,8 @@ import static org.assertj.core.api.Assertions.within;
  * version are asserted.
  * (b) api-spec §8 scenarios 1-12, 14, 15, 16, 18, 19 (13, 17, 20 belong to card A3).
  * (c)-(j) R13, closing cleanup, determinism, purge, untouched state on rejection, empty actor
- * ids, empty event lists, and the round-limit reply shape.
+ * ids, empty event lists, and the round-limit reply shape. (k) R10 cleanup after a match by
+ * either path (card A6).
  *
  * Fixture: basePrice 100 -> band [70, 300]; deals created at T0, TTL 180 s, offer TTL 30 s.
  */
@@ -939,5 +940,71 @@ class LuaRulesTest extends RedisTestSupport {
         assertThat(after.round()).isEqualTo(20);
         assertThat(after.bids()).isEmpty();
         assertThat(cmd.scard("driver:DR1:deals") + cmd.scard("driver:DR2:deals")).isZero();
+    }
+
+    // =============================================================================================
+    // (k) R10 cleanup in the same script (card A6)
+    // =============================================================================================
+
+    /** D bids on X, Y, Z (and DR2 on Y so Y keeps a bid); returns the versions of Y and Z before the match. */
+    long[] bidOnThree() {
+        for (String id : List.of("X", "Y", "Z")) open(id);
+        online("D", "DR2");
+        bid("X", "D", 150, 1);
+        bid("Y", "D", 150, 1);
+        bid("Z", "D", 150, 1);
+        bid("Y", "DR2", 160, 1);
+        return new long[] {deal("Y").version(), deal("Z").version()};
+    }
+
+    void assertCleanedUp(MarketOutcome r, long[] before) {
+        assertThat(events(r, "X")).anySatisfy(e -> assertThat(e).isInstanceOf(DealMatched.class));
+        for (String id : List.of("Y", "Z")) {
+            assertThat(events(r, id)).as(id).singleElement().satisfies(e -> {
+                assertThat(e).isInstanceOf(BidWithdrawn.class);
+                assertThat(((BidWithdrawn) e).driverId()).isEqualTo("D");
+                assertThat(((BidWithdrawn) e).reason()).isEqualTo(WithdrawReason.DRIVER_MATCHED_ELSEWHERE);
+            });
+        }
+        assertThat(deal("Y").version()).isEqualTo(before[0] + 1);
+        assertThat(deal("Z").version()).isEqualTo(before[1] + 1);
+        assertThat(events(r, "Y").get(0).version()).isEqualTo(before[0] + 1);
+        assertThat(events(r, "Z").get(0).version()).isEqualTo(before[1] + 1);
+        assertThat(deal("Y").bids()).extracting(Deal.Bid::driverId).containsExactly("DR2");
+        assertThat(deal("Z").bids()).isEmpty();
+        assertThat(cmd.scard("driver:D:deals")).isZero();
+        assertThat(cmd.hget("driver:D:state", "status")).isEqualTo("MATCHED");
+    }
+
+    @Test
+    @DisplayName("(k-a) R10: X에서 승객 지목 수락 → 같은 결과에 Y·Z의 bid.withdrawn(DRIVER_MATCHED_ELSEWHERE), Y·Z version +1")
+    void r10_riderPickCleansOtherDeals() {
+        long[] before = bidOnThree();
+        Deal x = deal("X");
+        MarketOutcome r = ok(apply("X", new AcceptBid("R1", bidOf(x, "D").bidId(), x.version()), 5));
+        assertThat(r.events().keySet()).containsExactly("X", "Y", "Z");
+        assertCleanedUp(r, before);
+    }
+
+    @Test
+    @DisplayName("(k-b) R10·R11: 체결된 기사가 새 거래에 호가 → DRIVER_NOT_AVAILABLE")
+    void r10_matchedDriverCannotBidOnANewDeal() {
+        bidOnThree();
+        Deal x = deal("X");
+        ok(apply("X", new AcceptBid("R1", bidOf(x, "D").bidId(), x.version()), 5));
+        open("W", "R1", 12.9716, 77.5946, 100.0, 6);
+        rejected(apply("W", new PlaceBid("D", 140, 12.98, 77.60, null), 7), ErrorCode.DRIVER_NOT_AVAILABLE);
+        assertThat(deal("W").bids()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("(k-c) R10: X에서 오퍼 수락으로 체결돼도 Y·Z의 호가가 같은 스크립트에서 정리된다")
+    void r10_offerTakenCleansOtherDeals() {
+        long[] before = bidOnThree();
+        offer("X", 120, 2);
+        MarketOutcome r = ok(apply("X", new AcceptOffer("D", deal("X").version()), 3));
+        assertThat(deal("X").match().matchPath()).isEqualTo(MatchPath.DRIVER_TOOK_OFFER);
+        assertThat(deal("X").match().driverId()).isEqualTo("D");
+        assertCleanedUp(r, before);
     }
 }
