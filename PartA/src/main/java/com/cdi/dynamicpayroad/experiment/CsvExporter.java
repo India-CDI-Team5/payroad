@@ -28,7 +28,7 @@ public final class CsvExporter implements Closeable {
             "beta", "wet", "distance_km", "status", "end_reason", "match_path", "final_price", "markup", "markup_dry",
             "chosen_rank", "lowest_bid_price", "winner_id", "winner_strategy", "winner_is_colluder",
             "winner_pickup_eta", "lowest_bid_pickup_eta", "round_count", "bidder_count", "withdraw_count",
-            "duration_sec", "param_offer_ttl", "param_round_limit", "param_tau");
+            "duration_sec", "param_offer_ttl", "param_round_limit", "param_tau", "mode", "beta_mode");
     public static final List<String> ACTION_COLUMNS = List.of(
             "run_id", "deal_id", "t_sec", "actor_type", "driver_id", "action", "price", "accepted", "reject_code");
     public static final List<String> LABEL_COLUMNS = List.of("run_id", "driver_id", "is_colluder", "strategy");
@@ -52,6 +52,14 @@ public final class CsvExporter implements Closeable {
     }
 
     public void writeDeal(RunMeta run, EpisodeEngine.Result r) {
+        writeDeal(run, r, null, null);
+    }
+
+    /**
+     * @param mode     E3's bargain or fixed, else null (blank)
+     * @param betaMode E6's on or off, else null (blank)
+     */
+    public void writeDeal(RunMeta run, EpisodeEngine.Result r, String mode, String betaMode) {
         DealRow row = r.row();
         Deal d = r.deal();
         Deal.Match m = d.match();
@@ -90,6 +98,8 @@ public final class CsvExporter implements Closeable {
         f.add(Long.toString(run.rules().offerTtl().toSeconds()));
         f.add(Integer.toString(run.rules().roundLimit()));
         f.add(run.tau() == null ? "" : num(run.tau()));
+        f.add(str(mode));
+        f.add(str(betaMode));
         line(deals, f);
     }
 

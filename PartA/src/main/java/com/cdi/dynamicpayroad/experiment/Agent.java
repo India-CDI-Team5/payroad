@@ -2,6 +2,8 @@ package com.cdi.dynamicpayroad.experiment;
 
 import com.cdi.dynamicpayroad.domain.DealEvent;
 
+import java.util.Optional;
+
 /**
  * A bot taking part in one episode: the rider or one driver. It acts only through
  * {@link EpisodeContext#submit} and {@link EpisodeContext#schedule}, so the episode stays on one
@@ -24,6 +26,14 @@ public interface Agent {
     /** Hidden collusion role, written only to labels.csv and deals_out.csv. */
     default boolean colluder() {
         return false;
+    }
+
+    /**
+     * A driver's {lat, lng} for this episode: presence is registered there and its bids carry it.
+     * Empty means the deal's origin.
+     */
+    default Optional<double[]> position() {
+        return Optional.empty();
     }
 
     /** Called once after the deal is created and drivers are present, at t = 0. */

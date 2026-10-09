@@ -150,8 +150,8 @@ class EpisodeEngineTest extends RedisTestSupport {
 
     @Test
     void argumentsAreCheckedBeforeRedisIsTouched() {
-        assertThatThrownBy(() -> ExperimentRunner.run("--scenario", "e1"))
-                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("not implemented (C2~C5, D1)");
+        assertThatThrownBy(() -> ExperimentRunner.run("--scenario", "e7"))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("not implemented (C3~C5, D1)");
         assertThatThrownBy(() -> ExperimentRunner.run("--scenario", "smoke", "--bogus", "1"))
                 .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("unknown argument");
         assertThatThrownBy(() -> ExperimentRunner.run("--scenario", "smoke", "--redis-url", "redis://localhost:6379/0"))

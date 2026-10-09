@@ -80,7 +80,7 @@ public record ScenarioConfig(
 
         if (scenario == null || scenario.isBlank()) throw new IllegalArgumentException("--scenario is required");
         if (seed != null && seeds != null) throw new IllegalArgumentException("give --seed or --seeds, not both");
-        if (seeds == null) seeds = List.of(seed != null ? seed : DEFAULT_SEED);
+        if (seeds == null && seed != null) seeds = List.of(seed);
         if (out == null) out = Path.of("../results/sim", scenario);
         if (rawOut == null) rawOut = Path.of("../results/sim/raw", scenario);
 
@@ -92,9 +92,14 @@ public record ScenarioConfig(
         }
         if (uri.getDatabase() == 0) throw new IllegalArgumentException("DB 0(실서비스)에서는 실행하지 않습니다: " + redisUrl);
 
-        return new ScenarioConfig(scenario, deals, List.copyOf(seeds), config, n, dealsPerRun, out, rawOut,
-                offerTtl, roundLimit, tau, betaOff, ringShares == null ? null : List.copyOf(ringShares), strategy,
+        return new ScenarioConfig(scenario, deals, seeds == null ? null : List.copyOf(seeds), config, n, dealsPerRun,
+                out, rawOut, offerTtl, roundLimit, tau, betaOff, ringShares == null ? null : List.copyOf(ringShares), strategy,
                 redisUrl);
+    }
+
+    /** --seed / --seeds, or {@code fallback} when neither was given (the scenario decides). */
+    public List<Long> seedsOr(List<Long> fallback) {
+        return seeds != null ? seeds : fallback;
     }
 
     /** DealRules.defaults() with --offer-ttl / --round-limit applied (E4). */

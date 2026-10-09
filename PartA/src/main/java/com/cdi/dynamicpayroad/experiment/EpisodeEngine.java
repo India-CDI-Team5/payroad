@@ -69,12 +69,26 @@ public final class EpisodeEngine implements EpisodeContext {
     private Double offerPrice;
 
     public EpisodeEngine(RedisMarket market, DealRow row, List<Agent> agents, long seed, int dealIndex, ActionLog log) {
+        this(market, row, agents, episodeRng(seed, dealIndex), dealIndex, log);
+    }
+
+    /**
+     * For bots that pick the drivers and draw their values before the episode starts: {@code rng}
+     * must be {@link #episodeRng}, already advanced by those draws.
+     */
+    public EpisodeEngine(RedisMarket market, DealRow row, List<Agent> agents, SplittableRandom rng, int dealIndex,
+                         ActionLog log) {
         this.market = market;
         this.row = row;
         this.agents = List.copyOf(agents);
         this.dealIndex = dealIndex;
         this.log = log;
-        this.rng = new SplittableRandom(seed * 1_000_003L + dealIndex);
+        this.rng = rng;
+    }
+
+    /** The episode's only source of randomness. */
+    public static SplittableRandom episodeRng(long seed, int dealIndex) {
+        return new SplittableRandom(seed * 1_000_003L + dealIndex);
     }
 
     public Result run() {
@@ -83,7 +97,8 @@ public final class EpisodeEngine implements EpisodeContext {
         market.createDeal(row.dealId(), RIDER_ID, row.originLat(), row.originLng(), row.basePrice(), Map.of(), createdAt);
         for (Agent a : agents) {
             if (a.actorType() != ActorType.DRIVER) continue;
-            String status = market.upsertPresence("DRIVER", a.id(), row.originLat(), row.originLng(), PRESENCE_TTL, createdAt);
+            double[] at = a.position().orElse(new double[] {row.originLat(), row.originLng()});
+            String status = market.upsertPresence("DRIVER", a.id(), at[0], at[1], PRESENCE_TTL, createdAt);
             log.add(row.dealId(), 0, ActorType.DRIVER, a.id(), Action.PRESENT, null, status != null,
                     status == null ? "PRESENCE_REFUSED" : null);
         }
