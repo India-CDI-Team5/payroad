@@ -35,3 +35,17 @@ pricing:
 presence:
   # R5: heartbeat TTL. Engaged users (api-spec §1.5) are kept past it by sweep.lua step 3.
   ttl-sec: 60
+
+population:
+  # api-spec §6.7: virtual users/drivers for the demo's supply-demand numbers. No deals, no DealHistory.
+  enabled: true
+  user-count: 1000
+  driver-count: 200
+  user-online-ratio: 0.05
+  driver-online-ratio: 0.70
+  churn-intensity: 0.05
+  center-lat: 12.9716
+  center-lng: 77.5946
+  spread-deg: 0.1
+  seed: 42
+  heartbeat-sec: 20

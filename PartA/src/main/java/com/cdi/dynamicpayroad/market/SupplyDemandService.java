@@ -28,7 +28,7 @@ public class SupplyDemandService {
         return new Snapshot(demand, supply, surge(demand, supply));
     }
 
-    /** clamp(demand / max(supply, 1), 0.7, 3.0), rounded to 0.1 — the same formula as MatchingEngine.surge. */
+    /** clamp(demand / max(supply, 1), 0.7, 3.0), rounded to 0.1 (the old MatchingEngine formula). */
     public static double surge(int demand, int supply) {
         double ratio = (double) demand / Math.max(supply, 1);
         double clamped = Math.max(MIN_SURGE, Math.min(MAX_SURGE, ratio));

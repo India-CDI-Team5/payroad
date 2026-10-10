@@ -42,5 +42,6 @@ test {
     systemProperty 'spring.data.redis.url', testRedis
     systemProperty 'payroad.test.redis-url', testRedis
     systemProperty 'deal.sweeper.enabled', 'false'
+    systemProperty 'population.enabled', 'false'
     systemProperty 'spring.datasource.url', 'jdbc:h2:mem:payroad-test;DB_CLOSE_DELAY=-1'
 }
