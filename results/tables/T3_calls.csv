@@ -1,0 +1,5 @@
+method,routes,mean_calls,median_calls,total_calls,saving_vs_current
+current_points,100,6.69,6.0,669,0.0
+current_cells,100,3.72,3.0,372,0.4439
+all_cells_U,100,4.13,4.0,413,0.3827
+proposed_M2,100,2.38,2.0,238,0.6442

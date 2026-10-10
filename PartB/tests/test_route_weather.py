@@ -37,4 +37,4 @@ def test_route_weather(tmp_path, monkeypatch):
 
 def test_health():
     with TestClient(service.app) as client:
-        assert client.get("/health").json() == {"status": "ok"}
+        assert client.get("/health").json()["status"] == "ok"

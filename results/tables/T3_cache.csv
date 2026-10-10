@@ -1,0 +1,4 @@
+key_scheme,trips,ttl_min,lookups,unique_keys,hits,hit_rate,api_calls
+current_points_2dp,500,10,2630,60,2570,0.9772,60
+current_points_cell,500,10,2630,7,2623,0.9973,7
+proposed_M2_cell,500,10,758,5,753,0.9934,5
