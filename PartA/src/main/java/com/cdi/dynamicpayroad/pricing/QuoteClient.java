@@ -45,7 +45,8 @@ public class QuoteClient {
         this.pricing = pricing;
         this.endpoint = URI.create(baseUrl.replaceAll("/+$", "") + "/quote");
         this.timeout = Duration.ofMillis(timeoutMs);
-        this.http = HttpClient.newBuilder().connectTimeout(timeout).build();
+        // HTTP/1.1: the default HTTP/2 client sends an h2c upgrade request, which uvicorn (Part B) rejects with 422.
+        this.http = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).connectTimeout(timeout).build();
     }
 
     public Quote quote(double oLat, double oLng, double dLat, double dLng, Instant departure, int demand, int supply) {

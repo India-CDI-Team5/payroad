@@ -3,599 +3,101 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Payroad AI Pricing Engine</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&amp;family=Inter:wght@400;500;700&amp;display=swap" rel="stylesheet">
-    
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-
-    <style>
-        :root {
-            --bg-color: #0f172a;
-            --primary: #3b82f6;
-            --primary-glow: rgba(59, 130, 246, 0.5);
-            --accent: #8b5cf6;
-            --surface: rgba(30, 41, 59, 0.7);
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-        }
-
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: 'Inter', sans-serif;
-            background: radial-gradient(circle at top left, #1e1b4b, var(--bg-color), #020617);
-            color: var(--text-main);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow-x: hidden;
-        }
-
-        .ambient-light {
-            position: fixed;
-            top: 20%;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 60vw;
-            height: 60vh;
-            background: linear-gradient(135deg, var(--primary), var(--accent));
-            filter: blur(150px);
-            opacity: 0.15;
-            z-index: -1;
-            pointer-events: none;
-            animation: pulse 8s infinite alternate;
-        }
-
-        @keyframes pulse {
-            0% { transform: translateX(-50%) scale(1); opacity: 0.15; }
-            100% { transform: translateX(-50%) scale(1.1); opacity: 0.25; }
-        }
-
-        .container {
-            width: 100%;
-            max-width: 1000px;
-            padding: 2rem;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 2rem;
-        }
-
-        .glass-panel {
-            background: var(--surface);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 24px;
-            padding: 2.5rem;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-            transition: transform 0.3s ease;
-            display: flex;
-            flex-direction: column;
-        }
-
-        h1 {
-            font-family: 'Outfit', sans-serif;
-            font-size: 2.5rem;
-            font-weight: 800;
-            margin: 0 0 0.5rem 0;
-            background: linear-gradient(to right, #60a5fa, #c084fc);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        p.subtitle {
-            color: var(--text-muted);
-            margin-bottom: 1.5rem;
-            font-size: 1rem;
-        }
-
-        #map {
-            width: 100%;
-            height: 250px;
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            margin-bottom: 1rem;
-            z-index: 1; /* Keep leaflet under glass but clickable */
-        }
-
-        /* Leaflet Dark mode tweaks */
-        .leaflet-layer,
-        .leaflet-control-zoom-in,
-        .leaflet-control-zoom-out,
-        .leaflet-control-attribution {
-            filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
-        }
-
-        .instruction-box {
-            background: rgba(15, 23, 42, 0.5);
-            border-radius: 12px;
-            padding: 1rem;
-            margin-bottom: 1rem;
-            font-size: 0.875rem;
-            color: #cbd5e1;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .instruction-step {
-            display: inline-block;
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            text-align: center;
-            line-height: 24px;
-            font-weight: bold;
-            font-size: 12px;
-        }
-
-        .step-1 { background: #10b981; color: white; }
-        .step-2 { background: #ef4444; color: white; }
-
-        button {
-            width: 100%;
-            background: linear-gradient(135deg, var(--primary), var(--accent));
-            color: white;
-            border: none;
-            padding: 1rem;
-            border-radius: 12px;
-            font-family: 'Outfit', sans-serif;
-            font-size: 1.125rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 10px 20px -10px var(--primary-glow);
-            position: relative;
-            overflow: hidden;
-            margin-top: auto;
-        }
-
-        button:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 15px 25px -10px var(--primary-glow);
-        }
-
-        button:active:not(:disabled) {
-            transform: translateY(0);
-        }
-
-        button:disabled {
-            background: #475569;
-            color: #94a3b8;
-            cursor: not-allowed;
-            box-shadow: none;
-        }
-
-        .search-row {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 1rem;
-        }
-
-        .search-row input {
-            flex: 1;
-        }
-
-        .search-btn, .locate-btn {
-            background: rgba(15, 23, 42, 0.5);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: white;
-            padding: 0.875rem 1rem;
-            border-radius: 12px;
-            cursor: pointer;
-            width: auto;
-            margin: 0;
-            transition: all 0.2s ease;
-        }
-
-        .search-btn:hover, .locate-btn:hover {
-            background: rgba(255, 255, 255, 0.1);
-            transform: translateY(0);
-            box-shadow: none;
-        }
-
-        /* Results Panel */
-        .results-panel {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-
-        .fare-display {
-            text-align: center;
-            margin-bottom: 2rem;
-            opacity: 0.3;
-            transition: opacity 0.5s ease;
-        }
-
-        .fare-display.active {
-            opacity: 1;
-        }
-
-        .fare-label {
-            font-family: 'Outfit', sans-serif;
-            font-size: 1.25rem;
-            color: var(--text-muted);
-            margin-bottom: 0.5rem;
-        }
-
-        .fare-amount {
-            font-family: 'Outfit', sans-serif;
-            font-size: 4rem;
-            font-weight: 800;
-            line-height: 1;
-            margin: 0;
-            background: linear-gradient(to bottom right, #ffffff, #94a3b8);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .fare-currency {
-            font-size: 2rem;
-            vertical-align: super;
-            margin-right: 0.25rem;
-            color: var(--text-muted);
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-            opacity: 0.3;
-            transition: opacity 0.5s ease;
-        }
-
-        .stats-grid.active {
-            opacity: 1;
-        }
-
-        .stat-card {
-            background: rgba(15, 23, 42, 0.4);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 16px;
-            padding: 1rem;
-            text-align: center;
-        }
-
-        .stat-value {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: white;
-            font-family: 'Outfit', sans-serif;
-            margin-bottom: 0.25rem;
-        }
-
-        .stat-label {
-            font-size: 0.75rem;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        .loader {
-            display: none;
-            width: 24px;
-            height: 24px;
-            border: 3px solid rgba(255,255,255,0.3);
-            border-radius: 50%;
-            border-top-color: white;
-            animation: spin 1s ease-in-out infinite;
-            margin: 0 auto;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .model-badge {
-            display: inline-block;
-            background: rgba(139, 92, 246, 0.2);
-            color: #c4b5fd;
-            padding: 0.25rem 0.75rem;
-            border-radius: 999px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            margin-top: 1rem;
-            border: 1px solid rgba(139, 92, 246, 0.3);
-        }
-
-        @media (max-width: 768px) {
-            .container {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
+    <title>Payroad Bargaining</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
-    <div class="ambient-light"></div>
-
-    <div class="container">
-        <!-- Input Panel -->
-        <div class="glass-panel">
-            <h1>Payroad AI</h1>
-            <p class="subtitle">Dynamic ML-Powered Pricing Engine</p>
-
-            <div class="search-row">
-                <input type="text" id="searchInput" placeholder="Search places in Bengaluru...">
-                <button class="search-btn" onclick="searchPlace()">🔍 Search</button>
-                <button class="locate-btn" onclick="locateMe()">📍 Me</button>
-            </div>
-
-            <div class="instruction-box" id="instructionBox">
-                <span class="instruction-step step-1">1</span>
-                <span id="instructionText">Click map or Search to set Origin</span>
-            </div>
-
-            <div id="map"></div>
-
-            <button id="calcBtn" onclick="calculateFare()" disabled>
-                <span id="btnText">Calculate Fare</span>
-                <div class="loader" id="btnLoader"></div>
-            </button>
-        </div>
-
-        <!-- Results Panel -->
-        <div class="glass-panel results-panel">
-            <div class="fare-display" id="fareDisplay">
-                <div class="fare-label">Estimated Fare</div>
-                <h2 class="fare-amount"><span class="fare-currency">₹</span><span id="fareValue">--</span></h2>
-                <div class="model-badge" id="modelBadge">Awaiting Data...</div>
-            </div>
-
-            <div class="stats-grid" id="statsGrid">
-                <div class="stat-card">
-                    <div class="stat-value" id="valDistance">-- km</div>
-                    <div class="stat-label">Distance</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="valSupplyDemand">-- / --</div>
-                    <div class="stat-label">Supply / Demand</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="valWeather">-- mm</div>
-                    <div class="stat-label">Rainfall (Avg)</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="valAlpha">-- x</div>
-                    <div class="stat-label">Surge Multiplier</div>
-                </div>
-            </div>
-        </div>
+<header class="topbar">
+    <div class="brand">Payroad</div>
+    <div class="role-toggle" role="tablist">
+        <button id="role-rider" class="role active" type="button">Rider</button>
+        <button id="role-driver" class="role" type="button">Driver</button>
     </div>
+    <label class="id-field">ID <input id="actor-id" type="text" value="R001" spellcheck="false"></label>
+    <div id="conn" class="conn off">Disconnected</div>
+</header>
 
-    <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <script>
-        // Initialize Map centered on Bengaluru
-        const map = L.map('map').setView([12.9716, 77.5946], 11);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '© OpenStreetMap'
-        }).addTo(map);
+<main class="layout">
+    <div id="map"></div>
 
-        let originMarker = null;
-        let destMarker = null;
-        let weatherMarkers = [];
+    <section class="panel">
+        <!-- Rider -->
+        <div id="rider-panel">
+            <h2>New ride</h2>
+            <div class="row">
+                <label>From
+                    <select id="preset-origin"></select>
+                </label>
+                <label>To
+                    <select id="preset-dest"></select>
+                </label>
+            </div>
+            <p class="hint">Or click the map twice: origin, then destination.</p>
+            <p id="od-label" class="mono"></p>
+            <button id="create-deal" class="primary" type="button">Create deal</button>
 
-        // Custom Icons
-        const greenIcon = new L.Icon({
-            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
-            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-            iconSize: [25, 41],
-            iconAnchor: [12, 41],
-            popupAnchor: [1, -34],
-            shadowSize: [41, 41]
-        });
+            <div id="rider-deal" class="hidden">
+                <div id="rider-card" class="card"></div>
 
-        const redIcon = new L.Icon({
-            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-            iconSize: [25, 41],
-            iconAnchor: [12, 41],
-            popupAnchor: [1, -34],
-            shadowSize: [41, 41]
-        });
+                <h3>Bids</h3>
+                <div class="sort-toggle">
+                    <button data-sort="price" class="sort active" type="button">Price</button>
+                    <button data-sort="eta" class="sort" type="button">Fastest</button>
+                    <button data-sort="recommended" class="sort" type="button">Recommended</button>
+                </div>
+                <table class="bids">
+                    <thead><tr><th>Price</th><th>Pickup ETA</th><th>Pickup km</th><th>Driver</th><th></th></tr></thead>
+                    <tbody id="bid-rows"></tbody>
+                </table>
 
-        const instructionBox = document.getElementById('instructionBox');
-        const instructionText = document.getElementById('instructionText');
-        const calcBtn = document.getElementById('calcBtn');
+                <h3>Counter-offer</h3>
+                <div class="row">
+                    <input id="offer-price" type="number" step="1" min="0" placeholder="Price (₹)">
+                    <button id="send-offer" type="button">Send offer</button>
+                </div>
+                <button id="cancel-deal" class="danger" type="button">Cancel deal</button>
+            </div>
+        </div>
 
-        function clearWeatherMarkers() {
-            weatherMarkers.forEach(m => map.removeLayer(m));
-            weatherMarkers = [];
-        }
+        <!-- Driver -->
+        <div id="driver-panel" class="hidden">
+            <h2>Driver</h2>
+            <p class="hint">Click the map to set your position.</p>
+            <p id="driver-pos" class="mono"></p>
+            <button id="go-online" class="primary" type="button">Go online</button>
+            <p id="driver-status" class="mono"></p>
 
-        async function handlePointSelection(lat, lng) {
-            if (!originMarker) {
-                // Set Origin
-                originMarker = L.marker([lat, lng], {icon: greenIcon}).addTo(map);
-                instructionBox.innerHTML = '<span class="instruction-step step-2">2</span><span id="instructionText">Click map or Search to set Destination</span>';
-                map.setView([lat, lng], 13);
-            } else if (!destMarker) {
-                // Set Destination
-                destMarker = L.marker([lat, lng], {icon: redIcon}).addTo(map);
-                instructionBox.innerHTML = '<div class="loader" style="display:inline-block; width:12px; height:12px; margin-right:8px; border-width:2px;"></div><span>Finding best route...</span>';
-                
-                try {
-                    // Real road route, fetched through our server (the ORS key stays server-side)
-                    const response = await fetch("/api/route", {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            start: { lat: originMarker.getLatLng().lat, lon: originMarker.getLatLng().lng },
-                            end: { lat: destMarker.getLatLng().lat, lon: destMarker.getLatLng().lng }
-                        })
-                    });
-                    if (!response.ok) throw new Error("route lookup failed: " + response.status);
-                    
-                    const data = await response.json();
-                    const coords = data.features[0].geometry.coordinates;
-                    
-                    // Convert [lon, lat] from GeoJSON to [lat, lon] for Leaflet Polyline
-                    const latlngs = coords.map(coord => [coord[1], coord[0]]);
-                    
-                    if(window.routeLine) map.removeLayer(window.routeLine);
-                    // Draw actual road path
-                    window.routeLine = L.polyline(latlngs, {color: '#8b5cf6', weight: 5, opacity: 0.8}).addTo(map);
-                    
-                    map.fitBounds(window.routeLine.getBounds(), {padding: [30, 30]});
-                    instructionBox.innerHTML = '<span style="color:#10b981; font-weight:bold;">Ready!</span><span> Click "Calculate Fare" to run the AI Model. (Click map to reset)</span>';
-                    calcBtn.disabled = false;
-                } catch (error) {
-                    console.error(error);
-                    // Fallback to straight line if API fails
-                    const latlngs = [originMarker.getLatLng(), destMarker.getLatLng()];
-                    if(window.routeLine) map.removeLayer(window.routeLine);
-                    window.routeLine = L.polyline(latlngs, {color: '#8b5cf6', weight: 4, dashArray: '10, 10'}).addTo(map);
-                    map.fitBounds(window.routeLine.getBounds(), {padding: [30, 30]});
-                    
-                    instructionBox.innerHTML = '<span style="color:#10b981; font-weight:bold;">Ready!</span><span> Click "Calculate Fare" to run the AI Model. (Click map to reset)</span>';
-                    calcBtn.disabled = false;
-                }
-            } else {
-                // Reset
-                map.removeLayer(originMarker);
-                map.removeLayer(destMarker);
-                if(window.routeLine) map.removeLayer(window.routeLine);
-                clearWeatherMarkers();
-                originMarker = null;
-                destMarker = null;
-                
-                instructionBox.innerHTML = '<span class="instruction-step step-1">1</span><span id="instructionText">Click map or Search to set Origin</span>';
-                calcBtn.disabled = true;
+            <h3>Nearby deals</h3>
+            <table class="market">
+                <thead><tr><th>Deal</th><th>Base</th><th>Lowest bid</th><th>Rider offer</th><th>Bidders</th><th>Left</th></tr></thead>
+                <tbody id="market-rows"></tbody>
+            </table>
 
-                // Set Origin immediately on the new click
-                originMarker = L.marker([lat, lng], {icon: greenIcon}).addTo(map);
-                instructionBox.innerHTML = '<span class="instruction-step step-2">2</span><span id="instructionText">Click map or Search to set Destination</span>';
-            }
-        }
+            <div id="driver-deal" class="hidden">
+                <div id="driver-card" class="card"></div>
+                <div class="row">
+                    <input id="bid-price" type="number" step="1" min="0" placeholder="Bid (₹)">
+                    <button id="send-bid" class="primary" type="button">Bid</button>
+                    <button id="withdraw-bid" type="button">Withdraw</button>
+                </div>
+                <p id="bid-warning" class="warning hidden">R1: you can only lower your bid</p>
+                <button id="accept-offer" class="hidden primary" type="button">Accept offer</button>
+                <p id="driver-matched" class="mono"></p>
+            </div>
+        </div>
 
-        map.on('click', function(e) {
-            handlePointSelection(e.latlng.lat, e.latlng.lng);
-        });
+        <div id="banner" class="banner hidden"></div>
+    </section>
+</main>
 
-        // Search logic (Geocoding)
-        async function searchPlace() {
-            const query = document.getElementById('searchInput').value;
-            if(!query) return;
-            // Append Bengaluru for better local results
-            const searchUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + ", Bengaluru")}&limit=1`;
-            try {
-                const res = await fetch(searchUrl);
-                const data = await res.json();
-                if(data && data.length > 0) {
-                    handlePointSelection(parseFloat(data[0].lat), parseFloat(data[0].lon));
-                    document.getElementById('searchInput').value = '';
-                } else {
-                    alert("Location not found.");
-                }
-            } catch(e) {
-                console.error(e);
-            }
-        }
+<div id="toasts"></div>
 
-        // Locate me logic
-        function locateMe() {
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                    (position) => handlePointSelection(position.coords.latitude, position.coords.longitude),
-                    () => alert("Unable to retrieve your location.")
-                );
-            } else {
-                alert("Geolocation not supported.");
-            }
-        }
-
-        async function calculateFare() {
-            if(!originMarker || !destMarker) return;
-
-            const btnText = document.getElementById('btnText');
-            const btnLoader = document.getElementById('btnLoader');
-            const fareDisplay = document.getElementById('fareDisplay');
-            const statsGrid = document.getElementById('statsGrid');
-            
-            // Set loading state
-            btnText.style.display = 'none';
-            btnLoader.style.display = 'block';
-            fareDisplay.classList.remove('active');
-            statsGrid.classList.remove('active');
-            clearWeatherMarkers();
-
-            const payload = {
-                start: {
-                    lat: originMarker.getLatLng().lat,
-                    lon: originMarker.getLatLng().lng
-                },
-                end: {
-                    lat: destMarker.getLatLng().lat,
-                    lon: destMarker.getLatLng().lng
-                }
-            };
-
-            try {
-                const response = await fetch('/fare', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                
-                const data = await response.json();
-                
-                if(!response.ok) {
-                    alert("Error: " + (data.detail || "Server error"));
-                    return;
-                }
-
-                // Draw weather checkpoints
-                if (data.checkpoints && data.checkpoints.length > 0) {
-                    data.checkpoints.forEach((cp, idx) => {
-                        const isRainy = cp.rain_mm > 0;
-                        const color = isRainy ? '#3b82f6' : '#f59e0b'; // Blue for rain, amber for clear
-                        const fill = isRainy ? '#60a5fa' : '#fbbf24';
-                        const emoji = isRainy ? '🌧️' : '☀️';
-                        
-                        const circle = L.circleMarker([cp.location[1], cp.location[0]], {
-                            radius: 8,
-                            fillColor: fill,
-                            color: color,
-                            weight: 2,
-                            opacity: 1,
-                            fillOpacity: 0.8
-                        }).addTo(map);
-                        
-                        circle.bindTooltip(`Point ${idx+1}: ${emoji} ${cp.rain_mm.toFixed(1)}mm rain`);
-                        weatherMarkers.push(circle);
-                    });
-                }
-
-                // Update UI
-                setTimeout(() => {
-                    document.getElementById('fareValue').innerText = data.final_fare.toFixed(1);
-                    document.getElementById('modelBadge').innerText = "Powered by " + data.pricing_model;
-                    document.getElementById('valDistance').innerText = data.distance_km.toFixed(1) + " km";
-                    document.getElementById('valSupplyDemand').innerText = data.supply + " / " + data.demand;
-                    document.getElementById('valWeather').innerText = data.average_rain_mm.toFixed(1) + " mm";
-                    document.getElementById('valAlpha').innerText = data.alpha.toFixed(2) + " x";
-                    
-                    fareDisplay.classList.add('active');
-                    statsGrid.classList.add('active');
-                }, 400);
-
-            } catch (error) {
-                alert("Failed to connect to the pricing engine.");
-            } finally {
-                btnText.style.display = 'block';
-                btnLoader.style.display = 'none';
-            }
-        }
-    </script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7/bundles/stomp.umd.min.js"></script>
+<script src="app.js"></script>
 </body>
 </html>

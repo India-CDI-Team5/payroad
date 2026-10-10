@@ -80,6 +80,30 @@ class QuoteClientTest {
                 + "\"departureUtc\":\"2026-10-08T03:00:00Z\",\"demand\":3,\"supply\":5}");
     }
 
+    /** uvicorn (Part B) answers an HTTP/2 upgrade request (h2c) with 422, so every live quote fell back. */
+    @Test
+    void requestIsPlainHttp11WithoutAnUpgradeHeader() throws IOException {
+        AtomicReference<String> protocol = new AtomicReference<>();
+        AtomicReference<String> upgrade = new AtomicReference<>();
+        server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/quote", ex -> {
+            protocol.set(ex.getProtocol());
+            upgrade.set(ex.getRequestHeaders().getFirst("Upgrade"));
+            ex.getRequestBody().readAllBytes();
+            byte[] out = RESPONSE.getBytes(StandardCharsets.UTF_8);
+            ex.sendResponseHeaders(200, out.length);
+            try (OutputStream os = ex.getResponseBody()) {
+                os.write(out);
+            }
+        });
+        server.start();
+        QuoteClient client = new QuoteClient(PRICING, "http://127.0.0.1:" + server.getAddress().getPort(), 2000);
+
+        assertThat(client.quote(O_LAT, O_LNG, D_LAT, D_LNG, DEPARTURE, 3, 5).priceSource()).isEqualTo("QUOTE");
+        assertThat(protocol.get()).isEqualTo("HTTP/1.1");
+        assertThat(upgrade.get()).isNull();
+    }
+
     @Test
     void answerAfter3sFallsBackWithin2_5s() throws IOException {
         QuoteClient client = serve(200, RESPONSE, 3000, null);
