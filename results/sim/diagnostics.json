@@ -1,0 +1,13 @@
+{
+  "var_test": {
+    "n": 69,
+    "std_markup": 0.09400003818177745,
+    "pass": true
+  },
+  "r2_test": {
+    "n": 27537,
+    "r2": 0.07777416299965478,
+    "pass": true,
+    "healthy": false
+  }
+}

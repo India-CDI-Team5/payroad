@@ -16,6 +16,7 @@ import io.lettuce.core.api.sync.RedisCommands;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -33,12 +34,19 @@ import java.util.SplittableRandom;
  * {@code bot-params.json}, every config × seed of the file unless --config / --seed(s) narrow it,
  * all into one deals_out.csv under --raw-out. Their actions.csv keeps only its header: the
  * behaviour log is for the collusion scenarios, and E1~E6 would fill gigabytes with it.
+ *
+ * <p>{@code diag-var} (card C3, ml-design v5 §6.5 variance test): the deal with the median
+ * base_price, n = 5, C1, played once per seed 1~100.
  */
 public final class ExperimentRunner {
 
     static final int SMOKE_DEALS = 10;
     static final String SMOKE_DRIVER_ID = "D-0001";
     static final Set<String> BOT_SCENARIOS = Set.of("e1", "e2", "e3", "e4", "e5", "e6");
+    static final String DIAG_VAR = "diag-var";
+    static final int DIAG_N = 5;
+    static final String DIAG_CONFIG = "C1";
+    static final long DIAG_SEEDS = 100;
 
     /** What main prints at the end. Wall time goes to stdout only, never into a CSV. */
     public record RunSummary(int episodes, double wallMsPerEpisode) {}
@@ -67,7 +75,8 @@ public final class ExperimentRunner {
     public static RunSummary run(String... args) {
         ScenarioConfig cfg = ScenarioConfig.parse(args);
         boolean smoke = cfg.scenario().equals("smoke");
-        if (!smoke && !BOT_SCENARIOS.contains(cfg.scenario())) {
+        boolean diag = cfg.scenario().equals(DIAG_VAR);
+        if (!smoke && !diag && !BOT_SCENARIOS.contains(cfg.scenario())) {
             throw new IllegalArgumentException("not implemented (C3~C5, D1): " + cfg.scenario());
         }
         DealSource source = DealSource.read(cfg.deals());
@@ -78,6 +87,7 @@ public final class ExperimentRunner {
         try (StatefulRedisConnection<String, String> conn = client.connect();
              CsvExporter csv = new CsvExporter(cfg.rawOut())) {
             if (smoke) return smoke(cfg, source, new RedisMarket(conn.sync(), uri.getDatabase(), cfg.rules()), csv);
+            if (diag) return diagVar(cfg, params, source, new RedisMarket(conn.sync(), uri.getDatabase(), cfg.rules()), csv);
             return bots(cfg, params, source, conn.sync(), uri.getDatabase(), csv);
         } finally {
             client.shutdown();
@@ -108,6 +118,40 @@ public final class ExperimentRunner {
             }
         }
         return new RunSummary(episodes, episodes == 0 ? 0 : nanos / 1e6 / episodes);
+    }
+
+    /** diag-var: one deal (the median base_price), n = 5, C1, deal index 0 under every seed. */
+    private static RunSummary diagVar(ScenarioConfig cfg, BotParams params, DealSource source, RedisMarket market,
+                                      CsvExporter csv) {
+        String config = cfg.config() != null ? cfg.config() : DIAG_CONFIG;
+        int n = cfg.n() != null ? cfg.n() : DIAG_N;
+        if (n > params.poolSize()) throw new IllegalArgumentException("--n is larger than the pool: " + n);
+        List<Long> seeds = new ArrayList<>();
+        for (long s = 1; s <= DIAG_SEEDS; s++) seeds.add(s);
+        DealRow row = medianRow(source);
+        RiderBot rider = new RiderBot();
+        int episodes = 0;
+        long nanos = 0;
+        for (long seed : cfg.seedsOr(seeds)) {
+            String runId = DIAG_VAR + "-" + config + "-s" + seed;
+            CsvExporter.RunMeta meta = new CsvExporter.RunMeta(runId, DIAG_VAR, config, seed, market.rules(), cfg.tau());
+            ActionLog log = new ActionLog(runId);
+            List<DriverBot> pool = DriverBot.pool(params, config, seed);
+            csv.writeLabels(runId, pool);
+            long t0 = System.nanoTime();
+            EpisodeEngine.Result r = episode(market, params, pool, rider, row, seed, 0, n, false, cfg.tau(), log);
+            nanos += System.nanoTime() - t0;
+            episodes++;
+            csv.writeDeal(meta, r);
+        }
+        return new RunSummary(episodes, episodes == 0 ? 0 : nanos / 1e6 / episodes);
+    }
+
+    /** The row whose base_price is the median; with an even count the lower one. Ties keep file order. */
+    static DealRow medianRow(DealSource source) {
+        List<DealRow> sorted = new ArrayList<>(source.rows());
+        sorted.sort(Comparator.comparingDouble(DealRow::basePrice));
+        return sorted.get((sorted.size() - 1) / 2);
     }
 
     /** e1~e6: config → seed → sweep cell → deal → variant, in that fixed order. */

@@ -1,4 +1,4 @@
-{"version":1, "revision_note":"", "pool_size":60, "deals_per_run":300, "default_n":5, "seeds":[1,30],
+{"version":1, "revision_note":"", "frozen_utc":"2026-10-10T06:19:32Z", "pool_size":60, "deals_per_run":300, "default_n":5, "seeds":[1,30],
  "driver":{"pickup_km":[0.3,5.0], "entry_delay_s":[1,20], "cost_factor":[0.75,0.95], "cost_per_km":0.02, "accept_margin":[0,0.05], "accept_delay_s":[1,4],
    "AGG":{"first":[1.30,2.00], "step":[0.02,0.04], "interval_s":[12,20]},
    "CON":{"first":[1.05,1.20], "step":[0.04,0.08], "interval_s":[8,14]},
