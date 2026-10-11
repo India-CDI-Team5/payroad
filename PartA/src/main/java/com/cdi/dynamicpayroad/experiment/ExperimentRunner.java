@@ -40,6 +40,12 @@ import java.util.SplittableRandom;
  * <p>{@code diag-var} (card C3, ml-design v5 §6.5 variance test): the deal with the median
  * base_price, n = 5, C1, played once per seed 1~100.
  *
+ * <p>{@code e7} (card C5, ml-design v5 §6.6 E7): n = 5, configs C1~C4, seeds of bot-params.json,
+ * ring shares {0, 0.1, 0.3, 0.5} (or --ring-shares) × strategies S1~S4 (or --strategy). With no ring
+ * member the strategy changes nothing, so share 0 is played once per config × seed as the shared
+ * baseline: run_id {@code e7-<config>-r0.0-s<seed>}, the others {@code e7-<config>-<strategy>-r<share>-s<seed>}.
+ * Same randomness for the same (seed, deal index) in every cell; deals_out.csv only.
+ *
  * <p>{@code collusion} (card D1, ml-design v5 §7.1): honest drivers in C1 shares, a ring of
  * round(share × 60) drivers playing --strategy, n = 8 and 1,000 deals per run from
  * {@code collusion-params.json}. Writes the full behaviour log: actions.csv, deals_out.csv and
@@ -57,6 +63,10 @@ public final class ExperimentRunner {
     static final long DIAG_SEEDS = 100;
     static final String COLLUSION = "collusion";
     static final String COLLUSION_CONFIG = "C1";
+    static final String E7 = "e7";
+    static final List<Double> E7_SHARES = List.of(0.0, 0.1, 0.3, 0.5);
+    static final List<CollusionStrategy> E7_STRATEGIES =
+            List.of(CollusionStrategy.S1, CollusionStrategy.S2, CollusionStrategy.S3, CollusionStrategy.S4);
 
     /** What main prints at the end. Wall time goes to stdout only, never into a CSV. */
     public record RunSummary(int episodes, double wallMsPerEpisode) {}
@@ -87,7 +97,8 @@ public final class ExperimentRunner {
         boolean smoke = cfg.scenario().equals("smoke");
         boolean diag = cfg.scenario().equals(DIAG_VAR);
         boolean collusion = cfg.scenario().equals(COLLUSION);
-        if (!smoke && !diag && !collusion && !BOT_SCENARIOS.contains(cfg.scenario())) {
+        boolean e7 = cfg.scenario().equals(E7);
+        if (!smoke && !diag && !collusion && !e7 && !BOT_SCENARIOS.contains(cfg.scenario())) {
             throw new IllegalArgumentException("not implemented (C3~C5, D1): " + cfg.scenario());
         }
         CollusionRing.Params collusionParams = null;
@@ -95,6 +106,12 @@ public final class ExperimentRunner {
         if (collusion) {
             if (cfg.strategy() == null) throw new IllegalArgumentException("collusion needs --strategy S1|S2|S3|S4");
             strategy = CollusionStrategy.valueOf(cfg.strategy());
+            collusionParams = CollusionRing.Params.read(CollusionRing.DEFAULT_PATH);
+        }
+        if (e7) {
+            if (cfg.strategy() != null && E7_STRATEGIES.stream().noneMatch(x -> x.name().equals(cfg.strategy()))) {
+                throw new IllegalArgumentException("e7 takes --strategy S1|S2|S3|S4: " + cfg.strategy());
+            }
             collusionParams = CollusionRing.Params.read(CollusionRing.DEFAULT_PATH);
         }
         DealSource source = DealSource.read(cfg.deals());
@@ -107,6 +124,8 @@ public final class ExperimentRunner {
             if (smoke) return smoke(cfg, source, new RedisMarket(conn.sync(), uri.getDatabase(), cfg.rules()), csv);
             if (diag) return diagVar(cfg, params, source, new RedisMarket(conn.sync(), uri.getDatabase(), cfg.rules()), csv);
             if (collusion) return collusion(cfg, params, collusionParams, strategy, source,
+                    new RedisMarket(conn.sync(), uri.getDatabase(), cfg.rules()), csv);
+            if (e7) return e7(cfg, params, collusionParams, source,
                     new RedisMarket(conn.sync(), uri.getDatabase(), cfg.rules()), csv);
             return bots(cfg, params, source, conn.sync(), uri.getDatabase(), csv);
         } finally {
@@ -261,6 +280,57 @@ public final class ExperimentRunner {
                     episodes++;
                     csv.writeDeal(meta, r);
                     csv.writeActions(log);
+                }
+            }
+        }
+        return new RunSummary(episodes, episodes == 0 ? 0 : nanos / 1e6 / episodes);
+    }
+
+    /** e7: config → seed → (share 0 once, then strategy × share) → deal. Behaviour log is not kept. */
+    private static RunSummary e7(ScenarioConfig cfg, BotParams params, CollusionRing.Params cp, DealSource source,
+                                 RedisMarket market, CsvExporter csv) {
+        List<String> configs = cfg.config() != null ? List.of(cfg.config()) : List.copyOf(params.configs().keySet());
+        List<Double> shares = cfg.ringShares() != null ? cfg.ringShares() : E7_SHARES;
+        for (double share : shares) {
+            if (!(share >= 0 && share <= 1)) throw new IllegalArgumentException("--ring-shares must be in [0, 1]: " + share);
+        }
+        List<CollusionStrategy> strategies = cfg.strategy() != null
+                ? List.of(CollusionStrategy.valueOf(cfg.strategy())) : E7_STRATEGIES;
+        int n = cfg.n() != null ? cfg.n() : params.defaultN();
+        if (n > params.poolSize()) throw new IllegalArgumentException("--n is larger than the pool: " + n);
+        int perRun = cfg.dealsPerRun() != null ? cfg.dealsPerRun() : params.dealsPerRun();
+
+        RiderBot rider = new RiderBot();
+        int episodes = 0;
+        long nanos = 0;
+        for (String config : configs) {
+            for (long seed : cfg.seedsOr(params.seedList())) {
+                List<DealRow> order = source.shuffled(seed);
+                // (strategy or null for the shared baseline, share) cells of this config × seed
+                List<Map.Entry<CollusionStrategy, Double>> cells = new ArrayList<>();
+                if (shares.contains(0.0)) cells.add(new java.util.AbstractMap.SimpleEntry<>(null, 0.0));
+                for (CollusionStrategy s : strategies) {
+                    for (double share : shares) if (share != 0.0) cells.add(new java.util.AbstractMap.SimpleEntry<>(s, share));
+                }
+                for (Map.Entry<CollusionStrategy, Double> c : cells) {
+                    CollusionStrategy s = c.getKey();
+                    double share = c.getValue();
+                    String runId = E7 + "-" + config + (s == null ? "" : "-" + s) + "-r" + share + "-s" + seed;
+                    List<DriverBot> pool = DriverBot.pool(params, config, seed);
+                    CollusionRing ring = CollusionRing.form(s == null ? CollusionStrategy.S1 : s, cp, pool, share, seed);
+                    CsvExporter.RunMeta meta = new CsvExporter.RunMeta(runId, E7, config, seed, market.rules(), cfg.tau());
+                    ActionLog log = new ActionLog(runId);
+                    csv.writeLabels(runId, pool);
+                    for (int i = 0; i < perRun; i++) {
+                        long t0 = System.nanoTime();
+                        EpisodeEngine.Result r = episode(market, params, pool, rider, order.get(i % order.size()), seed,
+                                i, n, false, cfg.tau(), log, ring);
+                        ring.endDeal();
+                        nanos += System.nanoTime() - t0;
+                        episodes++;
+                        csv.writeDeal(meta, r);
+                        log.clear();
+                    }
                 }
             }
         }

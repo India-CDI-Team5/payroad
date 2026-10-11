@@ -147,3 +147,25 @@ def test_e6_beta_modes(tmp_path):
     out = {r["beta_mode"]: r for r in read_out(tmp_path, "E6_weather.csv")}
     assert float(out["on"]["markup_dry_median"]) == pytest.approx(1.4)
     assert float(out["off"]["markup_dry_median"]) == pytest.approx(1.1)
+
+
+def test_e7_delta_is_paired_with_the_same_seeds_shared_baseline(tmp_path):
+    rows = []
+    for seed, base in ((1, 1.00), (2, 1.20)):
+        rows += [dict(deal(f"e7-C1-r0.0-s{seed}", seed=seed, markup=base), winner_is_colluder=0) for _ in range(3)]
+        for strategy, bump in (("S1", 0.10), ("S2", -0.05)):
+            rid = f"e7-C1-{strategy}-r0.3-s{seed}"
+            rows += [dict(deal(rid, seed=seed, markup=base + bump * seed), winner_is_colluder=c) for c in (0, 1, 1, 0)]
+    raw = write_raw(tmp_path, "e7", rows)
+    assert sm.summarize("e7", raw, tmp_path / "out") == {"E7_collusion.csv": 4}
+    out = {(r["strategy"], r["ring_share"]): r for r in read_out(tmp_path, "E7_collusion.csv")}
+    assert set(out) == {("S1", "0.000000"), ("S1", "0.300000"), ("S2", "0.000000"), ("S2", "0.300000")}
+    zero = out[("S1", "0.000000")]
+    assert float(zero["delta_vs_0"]) == 0 and float(zero["markup_median"]) == pytest.approx(1.10)
+    assert float(zero["honest_win_share"]) == 1.0
+    s1 = out[("S1", "0.300000")]
+    assert float(s1["delta_vs_0"]) == pytest.approx((0.10 + 0.20) / 2)     # seed 1: +0.10, seed 2: +0.20
+    assert float(s1["ci_lo"]) <= float(s1["delta_vs_0"]) <= float(s1["ci_hi"])
+    assert float(s1["honest_win_share"]) == pytest.approx(0.5)
+    assert float(out[("S2", "0.300000")]["delta_vs_0"]) == pytest.approx((-0.05 - 0.10) / 2)
+    assert out[("S2", "0.000000")]["markup_median"] == zero["markup_median"]

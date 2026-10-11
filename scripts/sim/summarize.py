@@ -1,4 +1,4 @@
-"""Summary CSVs of the mechanism experiments E1~E6 (ml-design v5 §6.4, §6.6, card C4).
+"""Summary CSVs of the mechanism experiments E1~E7 (ml-design v5 §6.4, §6.6, cards C4 and C5).
 
 Run from the repository root after the six runner scenarios (card C4 step 1):
   python scripts/sim/summarize.py
@@ -18,6 +18,11 @@ Definitions fixed here:
   E2_rounds       share of all deals with each round_count; E2_end: shares of MATCHED / TTL / ROUND_LIMIT
   E5_tau          rank shares among MATCHED deals the rider closed by picking a bid (chosen_rank ≥ 1);
                   deals closed by the driver taking the offer have chosen_rank 0 and no rank
+  E7_collusion    run_id e7-<config>[-<strategy>]-r<share>-s<seed>; share 0 is one baseline run per
+                  config × seed shared by every strategy. markup_median: seed mean of run markup medians.
+                  delta_vs_0: per seed, run markup median minus the same seed's share-0 run, then mean and
+                  bootstrap CI over seeds. honest_win_share: seed mean of the run's share of MATCHED deals
+                  won by a driver outside the ring (winner_is_colluder = 0)
 """
 import argparse
 import csv
@@ -34,7 +39,7 @@ BOOT_SEED = 42
 
 TEXT = ("run_id", "config", "status", "end_reason", "match_path", "mode", "beta_mode")
 NUMBER = ("seed", "n_drivers", "markup", "markup_dry", "chosen_rank", "winner_pickup_eta", "round_count",
-          "duration_sec", "param_offer_ttl", "param_round_limit", "param_tau")
+          "duration_sec", "param_offer_ttl", "param_round_limit", "param_tau", "winner_is_colluder")
 
 
 def load(path):
@@ -133,7 +138,18 @@ def run_stats(d, g):
         "rank1": float((rank == 1).mean()) if len(rank) else np.nan,
         "rank2": float((rank == 2).mean()) if len(rank) else np.nan,
         "rank3plus": float((rank >= 3).mean()) if len(rank) else np.nan,
+        "honest_win_share": float((d["winner_is_colluder"][g][m] == 0).mean()) if m.any() else np.nan,
+        **e7_cell(d["run_id"][g[0]]),
     }
+
+
+def e7_cell(run_id):
+    """(strategy, ring_share) of an e7 run_id; share-0 baselines have strategy ''. Other scenarios: empty."""
+    parts = run_id.split("-")
+    if parts[0] != "e7":
+        return {"strategy": "", "ring_share": np.nan}
+    share = next(p for p in parts if p.startswith("r"))
+    return {"strategy": parts[2] if len(parts) == 5 else "", "ring_share": float(share[1:])}
 
 
 def per_run(path):
@@ -206,6 +222,23 @@ def e6(rows):
             by(rows, "config", "beta_mode").items()]
 
 
+def e7(rows):
+    out = []
+    for (config,), rs in by(rows, "config").items():
+        base = {r["seed"]: r for r in rs if r["ring_share"] == 0}
+        strategies = sorted({r["strategy"] for r in rs if r["strategy"]})
+        for strategy in strategies:
+            cells = by([r for r in rs if r["strategy"] == strategy], "ring_share")
+            cells = {(0.0,): list(base.values()), **cells} if base else cells
+            for (share,), cell in sorted(cells.items()):
+                deltas = [r["markup_median"] - base[r["seed"]]["markup_median"] if r["seed"] in base else np.nan
+                          for r in cell]
+                delta, lo, hi = bootstrap(deltas)
+                out.append([config, strategy, share, mean([r["markup_median"] for r in cell]), delta, lo, hi,
+                            mean([r["honest_win_share"] for r in cell])])
+    return out
+
+
 OUTPUTS = {
     "e1": [("E1_summary.csv", ["config", "n", "runs", "markup_median", "ci_lo", "ci_hi", "match_rate", "mr_ci_lo",
                                "mr_ci_hi"]),
@@ -220,9 +253,11 @@ OUTPUTS = {
     "e5": [("E5_tau.csv", ["config", "tau", "rank1_share", "rank2_share", "rank3plus_share", "markup_median",
                            "winner_eta_mean"])],
     "e6": [("E6_weather.csv", ["config", "beta_mode", "duration_median", "match_rate", "markup_dry_median"])],
+    "e7": [("E7_collusion.csv", ["config", "strategy", "ring_share", "markup_median", "delta_vs_0", "ci_lo", "ci_hi",
+                                 "honest_win_share"])],
 }
 SUMMARIZERS = {"e1": e1, "e2": e2, "e3": lambda r: (e3(r),), "e4": lambda r: (e4(r),), "e5": lambda r: (e5(r),),
-               "e6": lambda r: (e6(r),)}
+               "e6": lambda r: (e6(r),), "e7": lambda r: (e7(r),)}
 
 
 def cell(v):
