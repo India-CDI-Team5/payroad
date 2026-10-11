@@ -1,0 +1,12 @@
+{
+  "opened_utc": "2026-10-11T19:01:28Z",
+  "holdout": "S5",
+  "git_head": "5e94052ab6a96cc53339126f609d2cab28b1ebf6",
+  "model_sha256": "a7a1243d0f20511e98e7d5229051ae3635d586a695e1bedadf2efe6d5f740dd1",
+  "frozen_sha256": "32c4ca20720247f19b7d9f2afbe271e858c10c6567338385795293040f2c6402",
+  "data_sha256": {
+    "actions.csv": "69f5e7d98909aac7fde332d037acae4fe90b43e23005b5bef25513132435f634",
+    "deals_out.csv": "b71837f556d11e0a07f4b50eec3dcfc9131e32ff176b77570637c2b2580d81a7",
+    "labels.csv": "826de9e5ecaaed09858f012fe4275440d724b071921b454c41898ec4c425fba3"
+  }
+}
