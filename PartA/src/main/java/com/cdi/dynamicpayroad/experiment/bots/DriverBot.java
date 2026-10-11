@@ -64,6 +64,7 @@ public final class DriverBot implements Agent {
     private boolean coverScheduled;
     private boolean coverDone;
     private boolean s4Scheduled;
+    private boolean s5Frozen;
 
     public DriverBot(String id, DriverStrategy strategy) {
         this.id = id;
@@ -134,6 +135,7 @@ public final class DriverBot implements Agent {
         coverScheduled = false;
         coverDone = false;
         s4Scheduled = false;
+        s5Frozen = false;
     }
 
     /** Makes this driver a member of {@code ring} for the rest of the run ({@link CollusionRing#form}). */
@@ -143,7 +145,7 @@ public final class DriverBot implements Agent {
 
     @Override public String id() { return id; }
     @Override public ActorType actorType() { return ActorType.DRIVER; }
-    /** The C1 strategy, or the collusion strategy (S1~S4) for a ring member. */
+    /** The C1 strategy, or the collusion strategy (S1~S5) for a ring member. */
     @Override public String strategy() { return ring == null ? strategy.name() : ring.strategy().name(); }
     @Override public boolean colluder() { return ring != null; }
 
@@ -164,6 +166,11 @@ public final class DriverBot implements Agent {
         return margin;
     }
 
+    /** This deal's pickup distance in km (S5 gives the ride to the closest member). */
+    double pickupKm() {
+        return pickupKm;
+    }
+
     @Override
     public void onStart(EpisodeContext ctx) {
         role = ring == null ? null : ring.role(id);
@@ -173,7 +180,7 @@ public final class DriverBot implements Agent {
         }
         CollusionRing.Params cp = ring.params();
         switch (role) {
-            case BASE, S3_COMPETE -> ctx.schedule(entryDelay, () -> enter(ctx));
+            case BASE, S3_COMPETE, S5_TAKER, S5_REFUSER -> ctx.schedule(entryDelay, () -> enter(ctx));
             case S1 -> {
                 floor = Math.min(Math.max(floor, cp.s1().floorMult() * basePrice), bandMax);
                 ctx.schedule(entryDelay, () -> enter(ctx));
@@ -243,7 +250,7 @@ public final class DriverBot implements Agent {
     /** One step down unless this driver holds the lowest bid; stops for good at the floor. */
     private void concede(EpisodeContext ctx) {
         Double mine = bids.get(id);
-        if (mine == null || mine <= floor) return;
+        if (mine == null || mine <= floor || s5Frozen) return;
         if (!holdsLowest(mine)) {
             double next = Math.max(mine - step(), lowerBound());
             if (next < mine) ctx.submit(new DealCommand.PlaceBid(id, next, position[0], position[1], null));
@@ -289,6 +296,9 @@ public final class DriverBot implements Agent {
                 } else if (entered) {
                     ctx.schedule(0, () -> rematchS4(ctx));
                 }
+            }
+            case S5_REFUSER -> {
+                if (e instanceof DealEvent.OfferPosted) s5Frozen = true;
             }
             default -> {}
         }
@@ -341,6 +351,8 @@ public final class DriverBot implements Agent {
 
     private void considerOffer(EpisodeContext ctx) {
         if (!entered || acceptScheduled || offer == null || offer < floor * (1 + margin)) return;
+        if (role == CollusionRing.Role.S5_REFUSER) return;
+        if (role == CollusionRing.Role.S5_TAKER && offer < ring.params().s5().takerOfferMin() * basePrice) return;
         acceptScheduled = true;
         ctx.schedule(acceptDelay, () -> {
             acceptScheduled = false;

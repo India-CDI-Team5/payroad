@@ -5,4 +5,5 @@
  "S1":{"floor_mult":1.25},
  "S2":{"winner_floor_mult":1.15, "cover_mult":[1.05,1.15], "cover_delay_s":2, "withdraw_at_s":150},
  "S3":{"abstain_prob":0.5, "high_bid":[1.8,2.2]},
- "S4":{"wait_after_honest_s":[5,10], "entry_window_s":3}}
+ "S4":{"wait_after_honest_s":[5,10], "entry_window_s":3},
+ "S5":{"taker_offer_min":0.90}}

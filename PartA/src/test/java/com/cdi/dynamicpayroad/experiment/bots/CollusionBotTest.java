@@ -239,6 +239,68 @@ class CollusionBotTest extends RedisTestSupport {
         noPriceRejects(played);
     }
 
+    /** S5 (card D5, docs/collusion-s5.md): offers belong to the closest member; the others refuse them and freeze. */
+    @Test
+    void s5LeavesOffersToTheClosestMemberAndTheOthersFreezeOnceTheRiderOffers() {
+        long seed = 201;
+        List<DriverBot> pool = DriverBot.pool(PARAMS, "C1", seed);
+        Map<String, DriverBot> byId = new HashMap<>();
+        pool.forEach(d -> byId.put(d.id(), d));
+        ring = CollusionRing.form(CollusionStrategy.S5, CP, pool, 0.9, seed);
+        RiderBot rider = new RiderBot();
+        List<DealRow> order = DEALS.shuffled(seed);
+        List<Played> played = new ArrayList<>();
+        int together = 0, refuserBids = 0, refusersOffered = 0, takerAccepts = 0;
+        for (int i = 0; i < DEALS_PER_TEST; i++) {
+            ActionLog log = new ActionLog("t");
+            DealRow row = order.get(i % order.size());
+            EpisodeEngine.Result r = ExperimentRunner.episode(market, PARAMS, pool, rider, row, seed, i, CP.nPerDeal(),
+                    false, null, log, ring);
+            Map<String, Role> roles = new HashMap<>();
+            for (String id : ring.present()) roles.put(id, ring.role(id));
+            Played p = new Played(row, log.rows(), ring.present(), roles, r);
+            played.add(p);
+            if (!p.together()) {
+                assertThat(roles.values()).containsOnly(Role.BASE);
+                assertThat(ring.s5Taker()).isNull();
+                ring.endDeal();
+                continue;
+            }
+            together++;
+            String closest = p.present().stream().min((a, b) -> Double.compare(byId.get(a).pickupKm(),
+                    byId.get(b).pickupKm())).orElseThrow();
+            assertThat(ring.s5Taker()).isEqualTo(closest);
+            assertThat(roles.entrySet()).allMatch(e -> e.getValue() == (e.getKey().equals(closest) ? Role.S5_TAKER : Role.S5_REFUSER));
+            double firstOffer = p.rows().stream().filter(a -> a.action() == Action.OFFER_POST && a.accepted())
+                    .mapToDouble(ActionLog.Row::tSec).findFirst().orElse(Double.POSITIVE_INFINITY);
+            for (String id : p.present()) {
+                List<ActionLog.Row> mine = p.of(id);
+                if (roles.get(id) == Role.S5_REFUSER) {
+                    assertThat(mine).as(id).noneMatch(a -> a.action() == Action.ACCEPT_OFFER);
+                    assertThat(mine).as(id + " conceded after the first offer")
+                            .noneMatch(a -> a.action() == Action.BID_UPDATE && a.tSec() > firstOffer + EPS);
+                    refuserBids += (int) mine.stream().filter(a -> BIDS.contains(a.action()) && a.accepted()).count();
+                    if (mine.stream().anyMatch(a -> a.action() == Action.OFFER_SEEN)) refusersOffered++;
+                } else {
+                    for (ActionLog.Row a : mine) {
+                        if (a.action() != Action.ACCEPT_OFFER) continue;
+                        takerAccepts++;
+                        assertThat(a.price()).as(a.toString())
+                                .isGreaterThanOrEqualTo(CP.s5().takerOfferMin() * row.basePrice() - EPS);
+                    }
+                }
+            }
+            ring.endDeal();
+        }
+        System.out.printf("S5 together=%d refuserBids=%d refusersOffered=%d takerAccepts=%d%n",
+                together, refuserBids, refusersOffered, takerAccepts);
+        assertThat(together).isGreaterThan(50);
+        assertThat(refuserBids).isGreaterThan(50);
+        assertThat(refusersOffered).isGreaterThan(20);
+        assertThat(takerAccepts).isGreaterThan(5);
+        noPriceRejects(played);
+    }
+
     @Test
     void ringShareZeroPlaysExactlyThePlainEpisodes() {
         List<DriverBot> withRing = DriverBot.pool(PARAMS, "C1", 4), plain = DriverBot.pool(PARAMS, "C1", 4);
