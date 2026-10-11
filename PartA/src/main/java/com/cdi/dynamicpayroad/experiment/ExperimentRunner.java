@@ -94,7 +94,6 @@ public final class ExperimentRunner {
         CollusionStrategy strategy = null;
         if (collusion) {
             if (cfg.strategy() == null) throw new IllegalArgumentException("collusion needs --strategy S1|S2|S3|S4");
-            if (cfg.strategy().equals("S5")) throw new IllegalArgumentException("not implemented (D5): S5");
             strategy = CollusionStrategy.valueOf(cfg.strategy());
             collusionParams = CollusionRing.Params.read(CollusionRing.DEFAULT_PATH);
         }

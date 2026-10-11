@@ -52,7 +52,11 @@ public final class CollusionRing {
         /** S3 member bidding base_price × U(1.8, 2.2) once and never conceding. */
         S3_HIGH,
         /** S4: waits for an honest bid, then matches the lowest honest bid inside a shared 3 s window. */
-        S4
+        S4,
+        /** S5 taker (closest pickup among the present members): own bids, takes offers only from the reserve up. */
+        S5_TAKER,
+        /** S5 refuser: own first bid and concessions until the rider's first offer, then frozen; never takes an offer. */
+        S5_REFUSER
     }
 
     /** {@code data/experiment/collusion-params.json}; keys fixed by card D1. */
@@ -67,7 +71,8 @@ public final class CollusionRing {
             @JsonProperty("S1") S1 s1,
             @JsonProperty("S2") S2 s2,
             @JsonProperty("S3") S3 s3,
-            @JsonProperty("S4") S4 s4) {
+            @JsonProperty("S4") S4 s4,
+            @JsonProperty("S5") S5 s5) {
 
         @JsonIgnoreProperties(ignoreUnknown = true)
         public record Train(List<String> strategies, @JsonProperty("ring_shares") List<Double> ringShares,
@@ -92,6 +97,10 @@ public final class CollusionRing {
         public record S4(@JsonProperty("wait_after_honest_s") double[] waitAfterHonestS,
                          @JsonProperty("entry_window_s") double entryWindowS) {}
 
+        /** {@code taker_offer_min}: the S5 taker accepts an offer only if it is ≥ this × base_price (and ≥ its own threshold). */
+        @JsonIgnoreProperties(ignoreUnknown = true)
+        public record S5(@JsonProperty("taker_offer_min") double takerOfferMin) {}
+
         public static Params read(Path path) {
             Params p;
             try {
@@ -103,20 +112,26 @@ public final class CollusionRing {
             return p;
         }
 
-        /** Default ring shares and seeds of a strategy: train for S1~S3, holdout_S4 for S4. */
+        /** Default ring shares and seeds of a strategy: train for S1~S3, holdout_S4 for S4, blind_S5 for S5. */
         public Grid grid(CollusionStrategy s) {
-            return s == CollusionStrategy.S4 ? holdoutS4 : new Grid(train.ringShares(), train.seeds());
+            return switch (s) {
+                case S4 -> holdoutS4;
+                case S5 -> blindS5;
+                default -> new Grid(train.ringShares(), train.seeds());
+            };
         }
 
         private void check(Path path) {
             List<String> bad = new ArrayList<>();
-            if (train == null || holdoutS4 == null || s1 == null || s2 == null || s3 == null || s4 == null) {
-                throw new IllegalArgumentException(path + ": train, holdout_S4 and S1~S4 are required");
+            if (train == null || holdoutS4 == null || blindS5 == null || s1 == null || s2 == null || s3 == null
+                    || s4 == null || s5 == null) {
+                throw new IllegalArgumentException(path + ": train, holdout_S4, blind_S5 and S1~S5 are required");
             }
             if (poolSize <= 0) bad.add("pool_size");
             if (nPerDeal <= 0 || nPerDeal > poolSize) bad.add("n_per_deal");
             if (dealsPerRun <= 0) bad.add("deals_per_run");
-            for (Grid g : List.of(new Grid(train.ringShares(), train.seeds()), holdoutS4)) {
+            if (!(s5.takerOfferMin() > 0)) bad.add("S5.taker_offer_min");
+            for (Grid g : List.of(new Grid(train.ringShares(), train.seeds()), holdoutS4, blindS5)) {
                 if (g.seeds() == null || g.seeds().size() != 2 || g.seeds().get(0) > g.seeds().get(1)) bad.add("seeds");
                 if (g.ringShares() == null || g.ringShares().stream().anyMatch(x -> x < 0 || x > 1)) bad.add("ring_shares");
             }
@@ -137,6 +152,8 @@ public final class CollusionRing {
     private final Params params;
     /** Member ids in id order. */
     private final Set<String> members;
+    /** The member bots by id: S5 reads their pickup distance (already drawn by {@link DriverBot#prepare}). */
+    private final Map<String, DriverBot> bots;
 
     // S3: whose turn it is, kept across the run
     private int turn;
@@ -152,10 +169,13 @@ public final class CollusionRing {
     private double s4Wait;
     private final Map<String, Double> s4Offset = new HashMap<>();
 
-    private CollusionRing(CollusionStrategy strategy, Params params, Set<String> members) {
+    private String s5Taker;
+
+    private CollusionRing(CollusionStrategy strategy, Params params, Set<String> members, Map<String, DriverBot> bots) {
         this.strategy = strategy;
         this.params = params;
         this.members = Collections.unmodifiableSet(members);
+        this.bots = Map.copyOf(bots);
     }
 
     /**
@@ -171,7 +191,9 @@ public final class CollusionRing {
         List<DriverBot> chosen = order.subList(0, size);
         Set<String> ids = new LinkedHashSet<>();
         chosen.stream().map(DriverBot::id).sorted().forEach(ids::add);
-        CollusionRing ring = new CollusionRing(strategy, params, ids);
+        Map<String, DriverBot> bots = new HashMap<>();
+        for (DriverBot d : chosen) bots.put(d.id(), d);
+        CollusionRing ring = new CollusionRing(strategy, params, ids, bots);
         for (DriverBot d : chosen) d.joinRing(ring);
         return ring;
     }
@@ -194,6 +216,7 @@ public final class CollusionRing {
         highShare.clear();
         s4Offset.clear();
         s2Winner = null;
+        s5Taker = null;
         SplittableRandom rng = dealRng(seed, dealIndex);
         boolean together = together();
         switch (strategy) {
@@ -241,6 +264,17 @@ public final class CollusionRing {
                     roles.put(id, Role.S4);
                     s4Offset.put(id, params.s4().entryWindowS() * rng.nextDouble());
                 }
+            }
+            case S5 -> {
+                if (!together) {
+                    present.forEach(id -> roles.put(id, Role.BASE));
+                    break;
+                }
+                // The member closest to the pickup takes the ride; ties go to the lower id. No draws.
+                for (String id : present) {
+                    if (s5Taker == null || bots.get(id).pickupKm() < bots.get(s5Taker).pickupKm()) s5Taker = id;
+                }
+                for (String id : present) roles.put(id, id.equals(s5Taker) ? Role.S5_TAKER : Role.S5_REFUSER);
             }
         }
     }
@@ -292,6 +326,11 @@ public final class CollusionRing {
     /** S2: the designated winner of the current deal, null when the members did not meet. */
     public String s2Winner() {
         return s2Winner;
+    }
+
+    /** S5: the member with the closest pickup in the current deal, null when the members did not meet. */
+    public String s5Taker() {
+        return s5Taker;
     }
 
     /** S2: this cover's bid as a share of the winner's live bid. */
