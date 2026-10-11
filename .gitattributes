@@ -4,3 +4,8 @@ PartB/models/gp_interpolator.json text eol=lf
 results/model_a/gp_rt.json text eol=lf
 config/pricing-constants.json text eol=lf
 PartB/configs/model_a_frozen.json text eol=lf
+
+# Files whose SHA-256 is recorded in collusion/configs/collusion_frozen.json (card D3).
+data/experiment/collusion-params.json text eol=lf
+collusion/configs/collusion_frozen.json text eol=lf
+results/collusion/model.pkl binary

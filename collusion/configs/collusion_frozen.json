@@ -1,0 +1,83 @@
+{
+  "frozen_utc": "2026-10-11T17:32:52Z",
+  "features": [
+    "participation_rate",
+    "withdraw_rate",
+    "late_withdraw_rate",
+    "update_rate",
+    "concession_interval_mean",
+    "relative_step_mean",
+    "entry_delay_mean",
+    "entry_delay_std",
+    "entry_after_first_other_mean",
+    "win_rate",
+    "offer_accept_rate",
+    "no_concession_share",
+    "sync_entry_max",
+    "sync_entry_mean",
+    "tie_rate_max",
+    "tie_rate_mean",
+    "no_undercut_max",
+    "no_undercut_mean",
+    "alternation_max",
+    "alternation_mean",
+    "cowithdraw_max",
+    "cowithdraw_mean",
+    "n_partners"
+  ],
+  "selected": "HGB-lr0.05-it200",
+  "candidates": [
+    {
+      "name": "LR",
+      "fold_pr_auc": {
+        "S3": 0.9982982937453267,
+        "S2": 0.9999794109078255,
+        "S1": 0.7757297220986458
+      },
+      "mean": 0.9246691422505994
+    },
+    {
+      "name": "HGB-lr0.05-it200",
+      "fold_pr_auc": {
+        "S3": 0.9910434140200579,
+        "S2": 0.9988661434107989,
+        "S1": 1.0
+      },
+      "mean": 0.996636519143619
+    },
+    {
+      "name": "HGB-lr0.05-it400",
+      "fold_pr_auc": {
+        "S3": 0.9894564065308142,
+        "S2": 0.9988807689820715,
+        "S1": 1.0
+      },
+      "mean": 0.9961123918376286
+    },
+    {
+      "name": "HGB-lr0.1-it200",
+      "fold_pr_auc": {
+        "S3": 0.9874891048159843,
+        "S2": 0.9988842046760087,
+        "S1": 1.0
+      },
+      "mean": 0.9954577698306643
+    },
+    {
+      "name": "HGB-lr0.1-it400",
+      "fold_pr_auc": {
+        "S3": 0.9874185615762461,
+        "S2": 0.9988904480768239,
+        "S1": 1.0
+      },
+      "mean": 0.9954363365510233
+    }
+  ],
+  "threshold": 0.005239519021135884,
+  "threshold_rule": "flag when score > threshold; score = predict_proba[:, 1] (model) or sign * feature (B-rule)",
+  "model_sha256": "a7a1243d0f20511e98e7d5229051ae3635d586a695e1bedadf2efe6d5f740dd1",
+  "best_single_feature": "no_concession_share",
+  "best_single_sign": 1,
+  "best_single_threshold": 0.4,
+  "collusion_params_sha256": "752dbee4c233560941de22a54dfe630abb9ac1f35ac06fbae313a704c84ba9b1"
+}
