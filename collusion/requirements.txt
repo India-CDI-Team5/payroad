@@ -1,0 +1,7 @@
+# Collusion detection (cards D2~D4). Versions match PartB/requirements.txt.
+numpy==2.5.1
+scipy==1.18.0
+scikit-learn==1.9.0
+pyarrow==25.0.1
+matplotlib==3.11.2
+pytest==9.1.1
