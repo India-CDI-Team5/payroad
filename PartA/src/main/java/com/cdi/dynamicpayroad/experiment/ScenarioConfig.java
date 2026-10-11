@@ -82,7 +82,10 @@ public record ScenarioConfig(
         if (seed != null && seeds != null) throw new IllegalArgumentException("give --seed or --seeds, not both");
         if (seeds == null && seed != null) seeds = List.of(seed);
         if (out == null) out = Path.of("../results/sim", scenario);
-        if (rawOut == null) rawOut = Path.of("../results/sim/raw", scenario);
+        if (rawOut == null) {
+            rawOut = scenario.equals("collusion") && strategy != null
+                    ? Path.of("../results/sim/raw/collusion", strategy) : Path.of("../results/sim/raw", scenario);
+        }
 
         RedisURI uri;
         try {

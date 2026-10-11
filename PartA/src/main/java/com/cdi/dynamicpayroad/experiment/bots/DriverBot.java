@@ -25,6 +25,9 @@ import java.util.SplittableRandom;
  * base_price offer if base_price ≥ floor × (1 + m); no bids.
  *
  * <p>Rules are never judged here: a command that breaks one comes back rejected from Lua.
+ *
+ * <p>A driver that joined a {@link CollusionRing} plays the role the ring gives it for each deal
+ * (ml-design v5 §7.2, card D1); without a ring, or with role {@code BASE}, it is the honest bot.
  */
 public final class DriverBot implements Agent {
 
@@ -54,6 +57,13 @@ public final class DriverBot implements Agent {
     private Double offer;
     /** Live bid price by driver id, this driver included, kept from events. */
     private final Map<String, Double> bids = new HashMap<>();
+
+    // collusion (card D1); ring is set for the whole run, the rest per episode
+    private CollusionRing ring;
+    private CollusionRing.Role role;
+    private boolean coverScheduled;
+    private boolean coverDone;
+    private boolean s4Scheduled;
 
     public DriverBot(String id, DriverStrategy strategy) {
         this.id = id;
@@ -120,11 +130,22 @@ public final class DriverBot implements Agent {
         acceptScheduled = false;
         offer = null;
         bids.clear();
+        role = null;
+        coverScheduled = false;
+        coverDone = false;
+        s4Scheduled = false;
+    }
+
+    /** Makes this driver a member of {@code ring} for the rest of the run ({@link CollusionRing#form}). */
+    void joinRing(CollusionRing ring) {
+        this.ring = ring;
     }
 
     @Override public String id() { return id; }
     @Override public ActorType actorType() { return ActorType.DRIVER; }
-    @Override public String strategy() { return strategy.name(); }
+    /** The C1 strategy, or the collusion strategy (S1~S4) for a ring member. */
+    @Override public String strategy() { return ring == null ? strategy.name() : ring.strategy().name(); }
+    @Override public boolean colluder() { return ring != null; }
 
     public DriverStrategy driverStrategy() {
         return strategy;
@@ -145,7 +166,26 @@ public final class DriverBot implements Agent {
 
     @Override
     public void onStart(EpisodeContext ctx) {
-        ctx.schedule(entryDelay, () -> enter(ctx));
+        role = ring == null ? null : ring.role(id);
+        if (role == null) {
+            ctx.schedule(entryDelay, () -> enter(ctx));
+            return;
+        }
+        CollusionRing.Params cp = ring.params();
+        switch (role) {
+            case BASE, S3_COMPETE -> ctx.schedule(entryDelay, () -> enter(ctx));
+            case S1 -> {
+                floor = Math.min(Math.max(floor, cp.s1().floorMult() * basePrice), bandMax);
+                ctx.schedule(entryDelay, () -> enter(ctx));
+            }
+            case S2_WINNER -> {
+                floor = Math.min(floor * cp.s2().winnerFloorMult(), bandMax);
+                ctx.schedule(entryDelay, () -> enter(ctx));
+            }
+            case S2_COVER -> ctx.schedule(cp.s2().withdrawAtS(), () -> endCover(ctx));
+            case S3_HIGH -> ctx.schedule(entryDelay, () -> bidHighOnce(ctx));
+            case S3_ABSTAIN, S4 -> {} // S3 sits out; S4 waits for the first honest bid
+        }
     }
 
     @Override
@@ -162,6 +202,7 @@ public final class DriverBot implements Agent {
             case DealEvent.DealMatched m -> {}
             case DealEvent.DealExpired x -> {}
         }
+        if (role != null) collude(ctx, e);
     }
 
     private void enter(EpisodeContext ctx) {
@@ -186,7 +227,7 @@ public final class DriverBot implements Agent {
                 yield bidders <= 1 ? p.opp().firstLe1() : bidders <= 3 ? p.opp().firstLe3() : p.opp().firstElse();
             }
         };
-        return Math.min(Math.max(share * basePrice, floor), bandMax);
+        return Math.min(Math.max(share * basePrice, lowerBound()), bandMax);
     }
 
     private double step() {
@@ -204,9 +245,90 @@ public final class DriverBot implements Agent {
         Double mine = bids.get(id);
         if (mine == null || mine <= floor) return;
         if (!holdsLowest(mine)) {
-            ctx.submit(new DealCommand.PlaceBid(id, Math.max(mine - step(), floor), position[0], position[1], null));
+            double next = Math.max(mine - step(), lowerBound());
+            if (next < mine) ctx.submit(new DealCommand.PlaceBid(id, next, position[0], position[1], null));
         }
         ctx.schedule(interval, () -> concede(ctx));
+    }
+
+    /**
+     * The lowest price this driver may bid now: the floor, and for an S1 member also the highest
+     * live bid of a fellow member in the deal (never undercut the ring). For an honest driver the
+     * floor, which is below its live bid whenever it concedes, so the honest path is unchanged.
+     */
+    private double lowerBound() {
+        if (role != CollusionRing.Role.S1) return floor;
+        Double other = ring.highestOtherMemberBid(id, bids);
+        return other == null ? floor : Math.max(floor, other);
+    }
+
+    // ---- collusion roles (ml-design v5 §7.2) ----
+
+    private void collude(EpisodeContext ctx, DealEvent e) {
+        switch (role) {
+            case S2_COVER -> {
+                if (e instanceof DealEvent.BidPlaced b && b.bid().driverId().equals(ring.s2Winner())
+                        && !coverScheduled && !coverDone) {
+                    coverScheduled = true;
+                    ctx.schedule(ring.coverDelay(id), () -> placeCover(ctx));
+                }
+                if (e instanceof DealEvent.OfferPosted) endCover(ctx);
+            }
+            case S4 -> {
+                String driver = switch (e) {
+                    case DealEvent.BidPlaced b -> b.bid().driverId();
+                    case DealEvent.BidUpdated b -> b.bid().driverId();
+                    case DealEvent.BidWithdrawn w -> w.driverId();
+                    default -> null;
+                };
+                if (driver == null || ring.isMember(driver)) return;
+                if (!s4Scheduled) {
+                    if (ring.lowestHonestBid(bids) == null) return;
+                    s4Scheduled = true;
+                    ctx.schedule(ring.s4EntryAfterHonest(id), () -> enterS4(ctx));
+                } else if (entered) {
+                    ctx.schedule(0, () -> rematchS4(ctx));
+                }
+            }
+            default -> {}
+        }
+    }
+
+    /** S2 cover: winner's live bid × U(1.05, 1.15), cut to the band and never below the own floor. */
+    private void placeCover(EpisodeContext ctx) {
+        Double winner = bids.get(ring.s2Winner());
+        if (coverDone || winner == null || bids.containsKey(id)) return;
+        double price = Math.min(Math.max(winner * ring.coverShare(id), floor), bandMax);
+        ctx.submit(new DealCommand.PlaceBid(id, price, position[0], position[1], null));
+    }
+
+    /** S2 cover: at 150 s or right after a rider offer, withdraw and stay out. */
+    private void endCover(EpisodeContext ctx) {
+        if (coverDone) return;
+        coverDone = true;
+        if (bids.containsKey(id)) ctx.submit(new DealCommand.WithdrawBid(id, null));
+    }
+
+    /** S3 non-competitor: one bid at base_price × U(1.8, 2.2), never conceded, offers ignored. */
+    private void bidHighOnce(EpisodeContext ctx) {
+        double price = Math.min(Math.max(ring.highShare(id) * basePrice, floor), bandMax);
+        ctx.submit(new DealCommand.PlaceBid(id, price, position[0], position[1], null));
+    }
+
+    /** S4: inside the shared window, bid exactly the lowest honest bid if it is not below the floor. */
+    private void enterS4(EpisodeContext ctx) {
+        Double low = ring.lowestHonestBid(bids);
+        if (low == null || low < floor) return;
+        entered = true;
+        ctx.submit(new DealCommand.PlaceBid(id, low, position[0], position[1], null));
+        considerOffer(ctx);
+    }
+
+    /** S4: follow an honest driver down, but only while the price stays at or above the floor. */
+    private void rematchS4(EpisodeContext ctx) {
+        Double mine = bids.get(id), low = ring.lowestHonestBid(bids);
+        if (mine == null || low == null || low >= mine || low < floor) return;
+        ctx.submit(new DealCommand.PlaceBid(id, low, position[0], position[1], null));
     }
 
     /** No other live bid is cheaper (a tie counts as lowest). */

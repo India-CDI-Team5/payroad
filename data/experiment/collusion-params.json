@@ -1,0 +1,8 @@
+{"pool_size":60, "n_per_deal":8, "deals_per_run":1000,
+ "train":{"strategies":["S1","S2","S3"], "ring_shares":[0.1,0.3,0.5], "seeds":[1,10]},
+ "holdout_S4":{"ring_shares":[0.1,0.3,0.5,0.7,0.9], "seeds":[101,110]},
+ "blind_S5":{"ring_shares":[0.1,0.3,0.5,0.7,0.9], "seeds":[201,210]},
+ "S1":{"floor_mult":1.25},
+ "S2":{"winner_floor_mult":1.15, "cover_mult":[1.05,1.15], "cover_delay_s":2, "withdraw_at_s":150},
+ "S3":{"abstain_prob":0.5, "high_bid":[1.8,2.2]},
+ "S4":{"wait_after_honest_s":[5,10], "entry_window_s":3}}

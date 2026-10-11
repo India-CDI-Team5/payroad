@@ -6,6 +6,8 @@ import com.cdi.dynamicpayroad.domain.DealEvent;
 import com.cdi.dynamicpayroad.domain.DealRules;
 import com.cdi.dynamicpayroad.experiment.DealSource.DealRow;
 import com.cdi.dynamicpayroad.experiment.bots.BotParams;
+import com.cdi.dynamicpayroad.experiment.bots.CollusionRing;
+import com.cdi.dynamicpayroad.experiment.bots.CollusionStrategy;
 import com.cdi.dynamicpayroad.experiment.bots.DriverBot;
 import com.cdi.dynamicpayroad.experiment.bots.RiderBot;
 import com.cdi.dynamicpayroad.redis.RedisMarket;
@@ -37,6 +39,12 @@ import java.util.SplittableRandom;
  *
  * <p>{@code diag-var} (card C3, ml-design v5 §6.5 variance test): the deal with the median
  * base_price, n = 5, C1, played once per seed 1~100.
+ *
+ * <p>{@code collusion} (card D1, ml-design v5 §7.1): honest drivers in C1 shares, a ring of
+ * round(share × 60) drivers playing --strategy, n = 8 and 1,000 deals per run from
+ * {@code collusion-params.json}. Writes the full behaviour log: actions.csv, deals_out.csv and
+ * labels.csv under --raw-out (default ../results/sim/raw/collusion/&lt;strategy&gt;/), run_id
+ * {@code <strategy>-r<share>-s<seed>}.
  */
 public final class ExperimentRunner {
 
@@ -47,6 +55,8 @@ public final class ExperimentRunner {
     static final int DIAG_N = 5;
     static final String DIAG_CONFIG = "C1";
     static final long DIAG_SEEDS = 100;
+    static final String COLLUSION = "collusion";
+    static final String COLLUSION_CONFIG = "C1";
 
     /** What main prints at the end. Wall time goes to stdout only, never into a CSV. */
     public record RunSummary(int episodes, double wallMsPerEpisode) {}
@@ -76,8 +86,17 @@ public final class ExperimentRunner {
         ScenarioConfig cfg = ScenarioConfig.parse(args);
         boolean smoke = cfg.scenario().equals("smoke");
         boolean diag = cfg.scenario().equals(DIAG_VAR);
-        if (!smoke && !diag && !BOT_SCENARIOS.contains(cfg.scenario())) {
+        boolean collusion = cfg.scenario().equals(COLLUSION);
+        if (!smoke && !diag && !collusion && !BOT_SCENARIOS.contains(cfg.scenario())) {
             throw new IllegalArgumentException("not implemented (C3~C5, D1): " + cfg.scenario());
+        }
+        CollusionRing.Params collusionParams = null;
+        CollusionStrategy strategy = null;
+        if (collusion) {
+            if (cfg.strategy() == null) throw new IllegalArgumentException("collusion needs --strategy S1|S2|S3|S4");
+            if (cfg.strategy().equals("S5")) throw new IllegalArgumentException("not implemented (D5): S5");
+            strategy = CollusionStrategy.valueOf(cfg.strategy());
+            collusionParams = CollusionRing.Params.read(CollusionRing.DEFAULT_PATH);
         }
         DealSource source = DealSource.read(cfg.deals());
         BotParams params = smoke ? null : BotParams.read(BotParams.DEFAULT_PATH);
@@ -88,6 +107,8 @@ public final class ExperimentRunner {
              CsvExporter csv = new CsvExporter(cfg.rawOut())) {
             if (smoke) return smoke(cfg, source, new RedisMarket(conn.sync(), uri.getDatabase(), cfg.rules()), csv);
             if (diag) return diagVar(cfg, params, source, new RedisMarket(conn.sync(), uri.getDatabase(), cfg.rules()), csv);
+            if (collusion) return collusion(cfg, params, collusionParams, strategy, source,
+                    new RedisMarket(conn.sync(), uri.getDatabase(), cfg.rules()), csv);
             return bots(cfg, params, source, conn.sync(), uri.getDatabase(), csv);
         } finally {
             client.shutdown();
@@ -200,15 +221,69 @@ public final class ExperimentRunner {
         return new RunSummary(episodes, episodes == 0 ? 0 : nanos / 1e6 / episodes);
     }
 
+    /** collusion: share → seed → deal; every episode's behaviour log goes to actions.csv. */
+    private static RunSummary collusion(ScenarioConfig cfg, BotParams params, CollusionRing.Params cp,
+                                        CollusionStrategy strategy, DealSource source, RedisMarket market,
+                                        CsvExporter csv) {
+        if (cp.poolSize() != params.poolSize()) {
+            throw new IllegalArgumentException("collusion-params pool_size " + cp.poolSize()
+                    + " differs from bot-params pool_size " + params.poolSize());
+        }
+        CollusionRing.Params.Grid grid = cp.grid(strategy);
+        List<Double> shares = cfg.ringShares() != null ? cfg.ringShares() : grid.ringShares();
+        for (double share : shares) {
+            if (!(share >= 0 && share <= 1)) throw new IllegalArgumentException("--ring-shares must be in [0, 1]: " + share);
+        }
+        List<Long> defaultSeeds = new ArrayList<>();
+        for (long s = grid.seeds().get(0); s <= grid.seeds().get(1); s++) defaultSeeds.add(s);
+        int n = cfg.n() != null ? cfg.n() : cp.nPerDeal();
+        if (n > params.poolSize()) throw new IllegalArgumentException("--n is larger than the pool: " + n);
+        int perRun = cfg.dealsPerRun() != null ? cfg.dealsPerRun() : cp.dealsPerRun();
+
+        RiderBot rider = new RiderBot();
+        int episodes = 0;
+        long nanos = 0;
+        for (double share : shares) {
+            for (long seed : cfg.seedsOr(defaultSeeds)) {
+                String runId = strategy + "-r" + share + "-s" + seed;
+                List<DriverBot> pool = DriverBot.pool(params, COLLUSION_CONFIG, seed);
+                CollusionRing ring = CollusionRing.form(strategy, cp, pool, share, seed);
+                CsvExporter.RunMeta meta = new CsvExporter.RunMeta(runId, COLLUSION, COLLUSION_CONFIG, seed,
+                        market.rules(), cfg.tau());
+                ActionLog log = new ActionLog(runId);
+                csv.writeLabels(runId, pool);
+                List<DealRow> order = source.shuffled(seed);
+                for (int i = 0; i < perRun; i++) {
+                    long t0 = System.nanoTime();
+                    EpisodeEngine.Result r = episode(market, params, pool, rider, order.get(i % order.size()), seed, i,
+                            n, false, cfg.tau(), log, ring);
+                    ring.endDeal();
+                    nanos += System.nanoTime() - t0;
+                    episodes++;
+                    csv.writeDeal(meta, r);
+                    csv.writeActions(log);
+                }
+            }
+        }
+        return new RunSummary(episodes, episodes == 0 ? 0 : nanos / 1e6 / episodes);
+    }
+
+    public static EpisodeEngine.Result episode(RedisMarket market, BotParams params, List<DriverBot> pool,
+                                               RiderBot rider, DealRow row, long seed, int dealIndex, int n,
+                                               boolean fixedPrice, Double tau, ActionLog log) {
+        return episode(market, params, pool, rider, row, seed, dealIndex, n, fixedPrice, tau, log, null);
+    }
+
     /**
      * One bot episode. Every draw comes from {@link EpisodeEngine#episodeRng} in this order: a full
      * shuffle of the pool (the first n drivers take part), the rider's values, then each chosen
      * driver's values. The counts never depend on the variant, so the same (seed, dealIndex) gets
      * the same randomness in every condition, and the first k drivers are the same for every n ≥ k.
+     * A {@code ring} (null = none) is told the chosen drivers last; it draws from its own stream.
      */
     public static EpisodeEngine.Result episode(RedisMarket market, BotParams params, List<DriverBot> pool,
                                                RiderBot rider, DealRow row, long seed, int dealIndex, int n,
-                                               boolean fixedPrice, Double tau, ActionLog log) {
+                                               boolean fixedPrice, Double tau, ActionLog log, CollusionRing ring) {
         SplittableRandom rng = EpisodeEngine.episodeRng(seed, dealIndex);
         int[] idx = new int[pool.size()];
         for (int i = 0; i < idx.length; i++) idx[i] = i;
@@ -227,6 +302,7 @@ public final class ExperimentRunner {
             d.prepare(params, row, rules.bandMinRatio(), rules.bandMaxRatio(), fixedPrice, rng);
             agents.add(d);
         }
+        if (ring != null) ring.beginDeal(seed, dealIndex, agents.subList(1, agents.size()).stream().map(Agent::id).toList());
         return new EpisodeEngine(market, row, agents, rng, dealIndex, log).run();
     }
 
