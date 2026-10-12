@@ -49,3 +49,7 @@ population:
   spread-deg: 0.1
   seed: 42
   heartbeat-sec: 20
+
+admin:
+  # Card E3: GET /api/admin/deal-history.csv exists only when true (pilot day: --admin.export-enabled=true).
+  export-enabled: false
