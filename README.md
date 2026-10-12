@@ -7,7 +7,7 @@
 ## 주요 기능
 
 - **실시간 흥정**: 승객이 거래를 열면 주변 기사들이 호가를 내고, 승객은 가격과 픽업 예상 시간을 함께 보고 호가를 고르거나 직접 가격을 제안합니다. 흥정 규칙은 R1~R13 13개이고, 화면 갱신은 WebSocket(STOMP)으로 합니다.
-- **날씨를 반영한 기준가**: 경로가 지나는 기상 격자 셀 중 일부만 조회하고 Gaussian Process로 나머지를 보간해 경로 강수를 추정합니다. 추정값과 불확실성으로 강수 할증을 정합니다.
+- **날씨를 반영한 기준가**: 경로가 지나는 기상 격자 셀 중 일부만 조회해 경로 강수를 추정합니다. 조회 위치는 셀 단위로 고르고, Gaussian Process의 사후 분산이 큰 셀을 추가로 조회한 뒤 나머지를 GP로 보간합니다. 추정값과 불확실성으로 강수 할증을 정합니다.
 - **메커니즘 실험**: 실서비스와 같은 흥정 규칙 위에서 기사·승객 봇을 가상 시계로 돌려, 경쟁 기사 수·규칙 파라미터·날씨·담합이 체결에 주는 영향을 측정합니다(실험 E1~E7).
 - **담합 탐지**: 시뮬레이터에 담합 기사 집단을 심고, 행동 로그만으로 담합 기사를 찾는 모델을 학습합니다. 학습에 쓰지 않은 담합 전략으로 평가합니다.
 
@@ -19,7 +19,7 @@
 | `PartB` | 경로 기상 수집, 강수 보간, 기준가 API | Python, FastAPI, NumPy·SciPy(Gaussian Process 직접 구현) |
 | `collusion` | 행동 로그 피처 추출과 담합 탐지 모델 학습·평가 | Python, scikit-learn |
 | `config`, `data` | 동결된 가격 상수, 실험 봇·담합 파라미터, 실험용 거래 목록 | |
-| `docs` | API 명세, 가격 상수 출처, 기상 격자 실측 | |
+| `docs` | API 명세, 가격 상수 출처, 기상 격자 실측, 그림 원본(draw.io), 파일럿 진행 규약 | |
 | `results`, `scripts` | 실험 결과와 요약·그림·표 생성 스크립트 | |
 
 ## 핵심 설계
@@ -39,7 +39,7 @@ docker compose up -d redis                       # Redis 7.4 (localhost:6379)
 
 cd PartB
 pip install -r requirements.txt
-uvicorn app:app --port 8000                      # 기준가 API
+python -m uvicorn app:app --port 8000            # 기준가 API
 
 cd PartA
 ./gradlew bootRun                                # 흥정 서버와 데모 화면, 저장소 루트 .env에 ORS_API_KEY 필요
@@ -53,14 +53,16 @@ cd PartA
 ```bash
 cd PartA && ./gradlew test                       # Redis DB 15 사용
 cd PartB && python -m pytest
-python -m pytest collusion scripts/sim           # 저장소 루트에서
+python -m pytest collusion scripts               # 저장소 루트에서
 
 cd PartA && ./gradlew runExperiment --args="--scenario e2"   # 실험 러너, Redis DB 14 사용
 python scripts/sim/summarize.py                  # results/sim/ 요약 CSV
-python scripts/figures/make_all.py               # 그림·표
+python scripts/figures/make_all.py               # 그림·표 (results/figures/MANIFEST.txt에 SHA-256)
 ```
 
 실험 원시 출력(`results/sim/raw/`)은 저장소에 올리지 않습니다. 같은 seed로 다시 실행하면 같은 파일이 나옵니다.
+
+실험 결과와 코드는 태그 `v1.0-paper`로 동결했습니다. 이 태그를 깨끗하게 클론해 위 테스트가 모두 통과하고, `make_all.py`가 다시 만든 그림·표의 SHA-256이 `results/figures/MANIFEST.txt`와 같은 것을 확인했습니다. `PartB/data/`의 학습용 원자료(parquet)는 저장소에 없어서 모델 A를 처음부터 다시 학습하려면 `PartB/training/`의 수집 스크립트를 먼저 실행해야 합니다.
 
 ## 문서
 
@@ -70,3 +72,5 @@ python scripts/figures/make_all.py               # 그림·표
 | [docs/pricing-constants.md](docs/pricing-constants.md) | 기준가 상수와 출처(벵갈루루 오토릭샤 요금) |
 | [docs/weather-grid-resolution.md](docs/weather-grid-resolution.md) | 기상 API 격자 해상도 실측 |
 | [docs/collusion-s5.md](docs/collusion-s5.md) | 블라인드 평가용 담합 전략 S5 |
+| [docs/pilot-protocol.md](docs/pilot-protocol.md) | 사용자 파일럿 진행 규약(이번 연구에서는 진행하지 않음) |
+| `docs/figures_src/` | 시스템 구조도·상태 전이도 원본(diagrams.net) |
