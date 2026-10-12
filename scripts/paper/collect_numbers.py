@@ -324,6 +324,29 @@ def collect(root):
     add("T3 경로당 평균 호출 수, 제안(M2, 예산 비율 0.5)", lambda: src.cell(t3, "mean_calls", method="proposed_M2"))
     add("T3 비교 경로 수", lambda: src.cell(t3, "routes", method="current_points"))
     add("E3 고정가 체결까지 시간 중앙값(초), C1", lambda: src.cell(e3, "time_to_match_median", config="C1", mode="fixed"))
+
+    # Added for card P7 (mock review answers, appended)
+    for m in ["B1", "M2"]:
+        add(f"MAE(mm/h) [95% CI], ALL(테스트·U ≥ 3·맑은 표본 포함), {m}, ρ = 0.5",
+            lambda m=m: with_ci(t1, "mae_rho50", "ci50_lo", "ci50_hi", subset="ALL", method=m))
+    add("ALL 부분집합 표본 수", lambda: src.cell(t1, "n", subset="ALL", method="M1"))
+
+    def main_truth(stat):
+        import gzip
+        import statistics
+        rel = f"{ma}/test_per_sample.csv.gz"
+        path = os.path.join(root, rel)
+        if not os.path.exists(path):
+            raise Missing(rel)
+        with gzip.open(path, "rt", newline="", encoding="utf-8") as f:
+            m = [float(r["m_true"]) for r in csv.DictReader(f)
+                 if r["method"] == "M1" and _same(r["rho"], 0.5) and "MAIN" in r["subset_flags"].split("|")]
+        if not m:
+            raise Missing(f"{rel} (MAIN 행 없음)")
+        return (statistics.median(m) if stat == "median" else statistics.fmean(m)), f"{rel}:m_true (MAIN, n = {len(m)})"
+    add("MAIN 정답 경로 평균 강수 m의 중앙값(mm/h)", lambda: main_truth("median"))
+    add("MAIN 정답 경로 평균 강수 m의 평균(mm/h)", lambda: main_truth("mean"))
+    add("담합 탐지 동결 모델 설정", lambda: src.json("collusion/configs/collusion_frozen.json", "selected"))
     return items
 
 
