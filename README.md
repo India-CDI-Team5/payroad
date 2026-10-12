@@ -46,7 +46,7 @@ cd PartA
 ```
 
 - 경로 계산에는 OpenRouteService API 키가 필요합니다. 저장소 루트에 `.env` 파일을 만들고 `ORS_API_KEY=...`를 넣으세요.
-- `/quote`에는 기상 격자 파일 `PartB/data/grid_cells.json`이 필요합니다. 이 파일은 저장소에 없고, `cd PartB && python -m training.meteo_probe`로 만듭니다. 파일이 없으면 `/quote`는 502를 돌려주고, Part A는 폴백 기준가로 동작합니다.
+- `/quote`에는 기상 격자 파일 `PartB/data/grid_cells.json`이 필요합니다. 격자 좌표 82개만 담은 작은 파일이라 저장소에 포함되어 있습니다(`PartB/data/`의 다른 파일은 gitignore). 다시 만들려면 `cd PartB && python -m training.meteo_probe`를 실행합니다. 파일이 없으면 `/quote`는 502를 돌려주고, Part A는 폴백 기준가로 동작합니다.
 
 ## 테스트와 실험
 
