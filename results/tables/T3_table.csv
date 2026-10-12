@@ -1,0 +1,5 @@
+Method,Routes,Mean calls,Median calls,Total calls,Saving vs current
+Current: one call per sampled point,100,6.690,6.000,669,0.000
+"Current points, duplicate cells removed",100,3.720,3.000,372,0.444
+Every crossed cell (U),100,4.130,4.000,413,0.383
+"Proposed: M2, k = ⌈U/2⌉",100,2.380,2.000,238,0.644

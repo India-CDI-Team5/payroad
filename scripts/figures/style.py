@@ -75,8 +75,10 @@ def save(fig, path):
 
 
 def errorbar(ax, x, y, lo, hi, label, style):
-    ax.errorbar(x, y, yerr=[[a - b for a, b in zip(y, lo)], [b - a for a, b in zip(y, hi)]], label=label,
-                capsize=2, markersize=MARKER_SIZE, **style)
+    """A percentile bootstrap CI can miss its point estimate when scores tie (F9_S4 at ring share 0.1);
+    the bar then ends at the point instead of going negative. The CSV keeps the real interval."""
+    ax.errorbar(x, y, yerr=[[max(a - b, 0.0) for a, b in zip(y, lo)], [max(b - a, 0.0) for a, b in zip(y, hi)]],
+                label=label, capsize=2, markersize=MARKER_SIZE, **style)
 
 
 def fmt(v, digits=3):
