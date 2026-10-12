@@ -1,0 +1,104 @@
+<mxfile host="app.diagrams.net" compressed="false">
+  <diagram id="F5" name="F5 architecture">
+    <mxGraphModel dx="1400" dy="720" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1420" pageHeight="720" math="0" shadow="0" background="#FFFFFF" adaptiveColors="none">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Web UI -->
+        <mxCell id="ui" value="Web UI&lt;br&gt;Rider / Driver&lt;br&gt;(STOMP over WebSocket)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F2F2F2;strokeColor=#000000;strokeWidth=1;fontFamily=Helvetica;fontSize=11;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="20" y="170" width="160" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Part A -->
+        <mxCell id="partA" value="Part A: Spring Boot (stateless)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E6E6E6;strokeColor=#000000;strokeWidth=1;fontFamily=Helvetica;fontSize=11;fontColor=#000000;fontStyle=1;verticalAlign=top;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="320" y="40" width="300" height="390" as="geometry" />
+        </mxCell>
+        <mxCell id="a1" value="DealController (REST, STOMP)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;fontFamily=Helvetica;fontSize=11;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="340" y="80" width="260" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="a2" value="DealService (broadcast, history)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;fontFamily=Helvetica;fontSize=11;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="340" y="126" width="260" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="a3" value="PresenceService" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;fontFamily=Helvetica;fontSize=11;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="340" y="172" width="260" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="a4" value="SupplyDemandService" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;fontFamily=Helvetica;fontSize=11;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="340" y="218" width="260" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="a5" value="QuoteClient" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;fontFamily=Helvetica;fontSize=11;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="340" y="264" width="260" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="a6" value="Sweeper (1 s)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;fontFamily=Helvetica;fontSize=11;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="340" y="310" width="260" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="a7" value="DealHistory (H2)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;fontFamily=Helvetica;fontSize=11;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="340" y="356" width="260" height="36" as="geometry" />
+        </mxCell>
+
+        <!-- Part B -->
+        <mxCell id="partB" value="Part B: FastAPI /quote" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E6E6E6;strokeColor=#000000;strokeWidth=1;fontFamily=Helvetica;fontSize=11;fontColor=#000000;fontStyle=1;verticalAlign=top;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="800" y="40" width="300" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="b1" value="Route → grid cells → M2 placement&lt;br&gt;→ Forecast (k calls)&lt;br&gt;→ GP interpolation → β(r, s)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;fontFamily=Helvetica;fontSize=11;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="820" y="80" width="260" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- External -->
+        <mxCell id="ext" value="External&lt;br&gt;OpenRouteService&lt;br&gt;Open-Meteo (ECMWF IFS 9 km)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F2F2F2;strokeColor=#000000;strokeWidth=1;fontFamily=Helvetica;fontSize=11;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="1180" y="70" width="200" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- Redis -->
+        <mxCell id="redis" value="Redis 7" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E6E6E6;strokeColor=#000000;strokeWidth=1;fontFamily=Helvetica;fontSize=11;fontColor=#000000;fontStyle=1;verticalAlign=top;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="800" y="270" width="300" height="210" as="geometry" />
+        </mxCell>
+        <mxCell id="r1" value="Bargaining rules R1–R13&lt;br&gt;as Lua scripts (atomic)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DCEFE6;strokeColor=#000000;strokeWidth=1;fontFamily=Helvetica;fontSize=11;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="820" y="310" width="260" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="r2" value="deal / bid / presence keys" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;fontFamily=Helvetica;fontSize=11;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="820" y="380" width="260" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="r3" value="GEO indexes" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;fontFamily=Helvetica;fontSize=11;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="820" y="428" width="260" height="36" as="geometry" />
+        </mxCell>
+
+        <!-- Offline -->
+        <mxCell id="off" value="Offline" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;strokeWidth=1;dashed=1;fontFamily=Helvetica;fontSize=11;fontColor=#000000;fontStyle=1;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;" vertex="1" parent="1">
+          <mxGeometry x="780" y="560" width="620" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="o1" value="Experiment runner&lt;br&gt;(virtual clock, bots)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F2F2F2;strokeColor=#000000;strokeWidth=1;fontFamily=Helvetica;fontSize=11;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="800" y="600" width="300" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="o2" value="Model A training&lt;br&gt;(archive 2022–2025)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F2F2F2;strokeColor=#000000;strokeWidth=1;fontFamily=Helvetica;fontSize=11;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="1180" y="600" width="200" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Edges -->
+        <mxCell id="e1" value="/topic/deal/{id}" style="endArrow=classic;startArrow=classic;html=1;strokeColor=#000000;strokeWidth=1;fontFamily=Helvetica;fontSize=11;fontColor=#000000;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.4359;entryDx=0;entryDy=0;" edge="1" parent="1" source="ui" target="partA">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" value="POST /quote&lt;br&gt;(2 s timeout, fallback)" style="endArrow=classic;html=1;strokeColor=#000000;strokeWidth=1;fontFamily=Helvetica;fontSize=11;fontColor=#000000;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.2;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="partA" target="partB">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" value="EVALSHA&lt;br&gt;(1 round trip per command)" style="endArrow=classic;startArrow=classic;html=1;strokeColor=#000000;strokeWidth=1;fontFamily=Helvetica;fontSize=11;fontColor=#000000;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.7692;exitDx=0;exitDy=0;entryX=0;entryY=0.3333;entryDx=0;entryDy=0;" edge="1" parent="1" source="partA" target="redis">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" value="" style="endArrow=classic;html=1;strokeColor=#000000;strokeWidth=1;fontFamily=Helvetica;fontSize=11;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="partB" target="ext">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" value="same Lua scripts" style="endArrow=classic;html=1;strokeColor=#000000;strokeWidth=1;fontFamily=Helvetica;fontSize=11;fontColor=#000000;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="o1" target="redis">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" value="GP hyperparameters" style="endArrow=classic;html=1;strokeColor=#000000;strokeWidth=1;fontFamily=Helvetica;fontSize=11;fontColor=#000000;labelBackgroundColor=#FFFFFF;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.85;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="o2" target="partB">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1280" y="235" />
+              <mxPoint x="1055" y="235" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
