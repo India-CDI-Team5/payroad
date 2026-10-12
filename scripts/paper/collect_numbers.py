@@ -297,6 +297,33 @@ def collect(root):
         return r["honest_win_share"], f"{e7}:{i + 2}:honest_win_share ({r['config']})"
     add("E7 S4 담합 비율 0.5에서 정직한 기사의 체결 점유율, 4구성 중 최솟값", lambda: e7_s4_honest(min))
     add("E7 S4 담합 비율 0.5에서 정직한 기사의 체결 점유율, 4구성 중 최댓값", lambda: e7_s4_honest(max))
+
+    # Added for card P5 (appended)
+    def e2_ttl_max():
+        rows = list(enumerate(src.rows(e2)))
+        if not rows:
+            raise Missing(f"{e2} (행 없음)")
+        i, r = max(rows, key=lambda x: float(x[1]["ttl"]))
+        return r["ttl"], f"{e2}:{i + 2}:ttl ({r['config']})"
+    add("E2 TTL(180초) 종료 비율, 4구성 중 최댓값", e2_ttl_max)
+    f9 = "results/collusion/F9_S4.csv"
+    add("F9 S4 PR-AUC [95% CI], model, 담합 비율 0.1",
+        lambda: with_ci(f9, "pr_auc", "ci_lo", "ci_hi", method="model", ring_share="0.1"))
+    add("F9 S4 PR-AUC, B-price, 담합 비율 0.1", lambda: src.cell(f9, "pr_auc", method="B-price", ring_share="0.1"))
+
+    def f9_wins():
+        rows = src.rows(f9)
+        model = {float(r["ring_share"]): float(r["pr_auc"]) for r in rows if r["method"] == "model"}
+        price = {float(r["ring_share"]): float(r["pr_auc"]) for r in rows if r["method"] == "B-price"}
+        if not model:
+            raise Missing(f"{f9} (행 없음)")
+        wins = sum(model[k] > price.get(k, 1.0) for k in model)
+        return f"{wins}/{len(model)}", f"{f9}:pr_auc (model 대 B-price, 비율별)"
+    add("F9 S4 모델 PR-AUC가 B-price보다 높은 담합 비율 수 / 전체 비율 수", f9_wins)
+    add("T3 경로당 평균 호출 수, 현행 지점 조회", lambda: src.cell(t3, "mean_calls", method="current_points"))
+    add("T3 경로당 평균 호출 수, 제안(M2, 예산 비율 0.5)", lambda: src.cell(t3, "mean_calls", method="proposed_M2"))
+    add("T3 비교 경로 수", lambda: src.cell(t3, "routes", method="current_points"))
+    add("E3 고정가 체결까지 시간 중앙값(초), C1", lambda: src.cell(e3, "time_to_match_median", config="C1", mode="fixed"))
     return items
 
 
