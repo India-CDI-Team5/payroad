@@ -275,6 +275,28 @@ def collect(root):
     for desc, value, where in MANUAL:
         add(desc, lambda value=value, where=where: (value, where))
     add("실험 러너 에피소드당 실행 시간(ms), C2 보고서", lambda: _missing("수동: C2 보고서가 저장소에 없음"))
+
+    # Added for card P3 (appended so that earlier IDs do not shift)
+    add("E7 마크업 중앙값 증가(담합 0 대비) [95% CI], C3, S2, 담합 비율 0.5",
+        lambda: with_ci(e7, "delta_vs_0", "ci_lo", "ci_hi", config="C3", strategy="S2", ring_share="0.5"))
+
+    def e7_max_outside(config):
+        rows = [(i, r) for i, r in enumerate(src.rows(e7)) if r["config"] != config]
+        if not rows:
+            raise Missing(f"{e7} (행 없음)")
+        i, r = max(rows, key=lambda x: float(x[1]["delta_vs_0"]))
+        return (f"{fmt(r['delta_vs_0'])} ({r['config']}, {r['strategy']}, 담합 비율 {fmt(r['ring_share'])})",
+                f"{e7}:{i + 2}:delta_vs_0")
+    add("E7 마크업 중앙값 증가의 최댓값, C3 제외", lambda: e7_max_outside("C3"))
+
+    def e7_s4_honest(pick):
+        rows = [(i, r) for i, r in enumerate(src.rows(e7)) if r["strategy"] == "S4" and _same(r["ring_share"], 0.5)]
+        if not rows:
+            raise Missing(f"{e7} (S4 비율 0.5 행 없음)")
+        i, r = pick(rows, key=lambda x: float(x[1]["honest_win_share"]))
+        return r["honest_win_share"], f"{e7}:{i + 2}:honest_win_share ({r['config']})"
+    add("E7 S4 담합 비율 0.5에서 정직한 기사의 체결 점유율, 4구성 중 최솟값", lambda: e7_s4_honest(min))
+    add("E7 S4 담합 비율 0.5에서 정직한 기사의 체결 점유율, 4구성 중 최댓값", lambda: e7_s4_honest(max))
     return items
 
 
