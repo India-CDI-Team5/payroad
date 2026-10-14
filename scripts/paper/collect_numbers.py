@@ -449,6 +449,23 @@ def collect(root):
     for m in ["M1", "M2"]:
         add(f"최대 강수 셀 적중률(k/U = 0.5), MAIN, {m}",
             lambda m=m: src.cell(f"{ma}/T1_table.csv", "max_hit_rho50", subset="MAIN", method=m))
+
+    # Third feedback round (paper-revision-v1 X15, 2026-10-15, appended): previous system's error, MAE by k,
+    # surcharge decision beyond agreement.
+    prev, kbin, kap = f"{ph}/previous_mae.csv", f"{ph}/kbin_mae.csv", f"{ph}/surcharge_kappa.csv"
+    for sub in ["MAIN", "HOLDOUT"]:
+        add(f"사후: 이전 방식(거리별 지점 4·6·9·12개, 최근접 값) MAE(mm/h) [95% CI], {sub}",
+            lambda sub=sub: with_ci(prev, "mae", "ci_lo", "ci_hi", subset=sub))
+    add("사후: 이전 방식의 경로당 평균 지점 수(= 호출 수), HOLDOUT", lambda: src.cell(prev, "mean_points", subset="HOLDOUT"))
+    add("사후: 이전 방식의 경로당 평균 고유 셀 수, HOLDOUT", lambda: src.cell(prev, "mean_cells", subset="HOLDOUT"))
+    for sub, kb, m in [("MAIN", "2", "M1"), ("MAIN", "2", "M2"), ("MAIN", "2", "H-P"), ("MAIN", ">=3", "M1"),
+                       ("MAIN", ">=3", "M2"), ("MAIN", ">=3", "H-P"), ("HOLDOUT", ">=3", "M2"), ("HOLDOUT", ">=3", "H-P")]:
+        add(f"사후: {sub} MAE(mm/h), 예산 비율 0.5, k {kb}, {m}",
+            lambda sub=sub, kb=kb, m=m: src.cell(kbin, "mae", subset=sub, rho="0.5", k_bin=kb, method=m))
+    add("사후: MAIN 예산 비율 0.5에서 참 할증(β(r, 0) > 1.2) 표본 비율", lambda: src.cell(kap, "base_rate", method="M2"))
+    for m in ["B1", "M2"]:
+        add(f"사후: MAIN 예산 비율 0.5 할증 판단의 Cohen κ, {m}", lambda m=m: src.cell(kap, "kappa", method=m))
+    add("사후: MAIN 예산 비율 0.5 할증 판단의 재현율, M2", lambda: src.cell(kap, "recall", method="M2"))
     return items
 
 
