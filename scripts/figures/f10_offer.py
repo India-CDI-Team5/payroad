@@ -35,8 +35,8 @@ def make(results_dir, out_dir):
         rows = style.read_csv(os.path.join(results_dir, *parts, "E1_summary.csv"))
         series.append((level, sorted((int(r["n"]), r) for r in rows if r["config"] == CONFIG)))
     fig, (a, b) = plt.subplots(1, 2, figsize=style.SINGLE)
-    _panel(a, series, "markup_median", "ci_lo", "ci_hi", "Median markup", f"(a) {CONFIG}")
-    _panel(b, series, "match_rate", "mr_ci_lo", "mr_ci_hi", "Match rate", f"(b) {CONFIG}")
+    _panel(a, series, "markup_median", "ci_lo", "ci_hi", "Median markup", "(a) Median markup")
+    _panel(b, series, "match_rate", "mr_ci_lo", "mr_ci_hi", "Match rate", "(b) Match rate")
     handles, labels = a.get_legend_handles_labels()
     fig.legend(handles, labels, **LEGEND)          # one legend for both panels, above them
     fig.tight_layout(rect=(0, 0, 1, 0.9))

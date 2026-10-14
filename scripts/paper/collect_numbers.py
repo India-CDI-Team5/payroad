@@ -438,6 +438,17 @@ def collect(root):
         return int(round(float(v) * 10000)), f"{at} × 10,000"
     add("사후: 경로 1만 건당 예보 호출 수, 현행 지점 조회", lambda: per_10k("current_points"))
     add("사후: 경로 1만 건당 예보 호출 수, 제안(M2, 예산 비율 0.5)", lambda: per_10k("proposed_M2"))
+
+    # Second feedback round (paper-revision-v1 X14, 2026-10-15, appended): held-out check of the post-hoc rule and
+    # the grid points behind the call savings.
+    add("사후: HOLDOUT MAE(mm/h) [95% CI], H-P, 예산 비율 0.5",
+        lambda: with_ci(pmae, "mae", "ci_lo", "ci_hi", subset="HOLDOUT", method="H-P", rho="0.5"))
+    for m in ["B1", "M2", "H-P"]:
+        add(f"사후: B1의 k/U = 1.0 MAE에 처음 도달한 예산 비율(0.05 격자), {m}",
+            lambda m=m: src.cell(psav, "first_rho", method=m))
+    for m in ["M1", "M2"]:
+        add(f"최대 강수 셀 적중률(k/U = 0.5), MAIN, {m}",
+            lambda m=m: src.cell(f"{ma}/T1_table.csv", "max_hit_rho50", subset="MAIN", method=m))
     return items
 
 
