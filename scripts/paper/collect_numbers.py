@@ -347,6 +347,97 @@ def collect(root):
     add("MAIN 정답 경로 평균 강수 m의 중앙값(mm/h)", lambda: main_truth("median"))
     add("MAIN 정답 경로 평균 강수 m의 평균(mm/h)", lambda: main_truth("mean"))
     add("담합 탐지 동결 모델 설정", lambda: src.json("collusion/configs/collusion_frozen.json", "selected"))
+
+    # Post-hoc additions (paper-revision-v1 X5, 2026-10-14, appended). Tests were opened before these analyses.
+    ph, phs = "results/posthoc/model_a", "results/posthoc/sim"
+    prof, pmae = f"{ph}/placement_profile.csv", f"{ph}/placement_mae.csv"
+    psav, ptest = f"{ph}/placement_saving.csv", f"{ph}/placement_tests.csv"
+    offer, paths, rank = f"{phs}/E1_offer_base.csv", f"{phs}/E1_offer_paths.csv", f"{phs}/E5_rank_premium.csv"
+    rules = ["H-C", "H-P", "H-R", "H-N", "H-D", "H-S"]
+
+    def profile_share(prefix):
+        line, r = src.row(prof, key="main_n")
+        n = float(r["value"])
+        v, at = src.cell(prof, "value", key=prefix)
+        return float(v) / n, f"{at} / {prof}:{line}:value(main_n)"
+
+    add("사후: MAIN U 평균", lambda: src.cell(prof, "value", key="main_U_mean"))
+    add("사후: MAIN U 중앙값", lambda: src.cell(prof, "value", key="main_U_median"))
+    add("사후: MAIN 예산 비율 0.5에서 k = 2인 표본 비율", lambda: profile_share("main_k_count_rho0.5_2"))
+    add("사후: MAIN 예산 비율 0.5에서 M2가 분산으로 고른 셀이 1개인 표본 비율",
+        lambda: profile_share("main_var_picks_count_rho0.5_1"))
+    add("사후: MAIN 첫·끝 셀의 평균 지점 수", lambda: src.cell(prof, "value", key="endcell_points_mean"))
+    add("사후: MAIN 안쪽 셀의 평균 지점 수", lambda: src.cell(prof, "value", key="innercell_points_mean"))
+    add("사후: B1이 k/U = 1.0에서 놓친 셀 비율(표본 평균, 셀 중복률과 같음)",
+        lambda: src.cell(prof, "value", key="b1_rho1_missed_cell_share_mean"))
+    for m in rules:
+        add(f"사후: MAIN MAE(mm/h) [95% CI], {m}, 예산 비율 0.5",
+            lambda m=m: with_ci(pmae, "mae", "ci_lo", "ci_hi", subset="MAIN", method=m, rho="0.5"))
+    for m in rules:
+        def saving(m=m):
+            line, r = src.row(psav, method=m)
+            if r["saving_vs_B1"] == "":
+                return "미도달", f"{psav}:{line}:saving_vs_B1"
+            return r["saving_vs_B1"], f"{psav}:{line}:saving_vs_B1"
+        add(f"사후: 동일 정확도 호출 절감률(B1 대비), {m}", saving)
+    for m in rules:
+        add(f"사후: M2 − {m} 절대 오차 평균 차 [95% CI], 예산 비율 0.5",
+            lambda m=m: with_ci(ptest, "mean_diff", "ci_lo", "ci_hi", a="M2", b=m, rho="0.5"))
+        add(f"사후: M2 대 {m} Holm 보정 p(사후 24검정), 예산 비율 0.5",
+            lambda m=m: p_value(ptest, "p_holm", a="M2", b=m, rho="0.5"))
+    for rho in RHOS:
+        add(f"사후: M2 − B1 절대 오차 평균 차 [95% CI], 예산 비율 {rho}",
+            lambda rho=rho: with_ci(ptest, "mean_diff", "ci_lo", "ci_hi", a="M2", b="B1", rho=rho))
+        add(f"사후: M2 대 B1 Holm 보정 p(사후 24검정), 예산 비율 {rho}",
+            lambda rho=rho: p_value(ptest, "p_holm", a="M2", b="B1", rho=rho))
+    add("사후: H-C − M1 절대 오차 평균 차 [95% CI], 예산 비율 0.5",
+        lambda: with_ci(ptest, "mean_diff", "ci_lo", "ci_hi", a="H-C", b="M1", rho="0.5"))
+    add("사후: H-C 대 M1 Holm 보정 p(사후 24검정), 예산 비율 0.5",
+        lambda: p_value(ptest, "p_holm", a="H-C", b="M1", rho="0.5"))
+    for m in rules:
+        add(f"사후: 예산 비율 0.5에서 {m}가 M2와 같은 셀 집합을 고른 비율",
+            lambda m=m: src.cell(prof, "value", key=f"same_as_m2_share_rho0.5_{m}"))
+
+    def offer_passes():
+        rows = [r for r in src.rows(offer) if r["offer_base"] in ("0.90", "1.00")]
+        if not rows:
+            raise Missing(f"{offer} (0.90·1.00 행 없음)")
+        return f"{sum(r['monotone_decrease'] == '1' for r in rows)}/{len(rows)}", f"{offer}:monotone_decrease (0.90·1.00)"
+    add("사후: 첫 오퍼 0.90·1.00에서 E1 단조 감소 판정 통과 수 / 조건 수", offer_passes)
+    add("사후: 첫 오퍼 0.90, C1, 기사 수와 마크업 중앙값의 Spearman ρ",
+        lambda: src.cell(offer, "spearman_n_markup", offer_base="0.90", config="C1"))
+    add("사후: 첫 오퍼 0.90, C1, 마크업 중앙값 차(n = 1 − n = 10) [95% CI]",
+        lambda: with_ci(offer, "diff_n1_minus_n10", "ci_lo", "ci_hi", offer_base="0.90", config="C1"))
+    for level in ["0.90", "1.00"]:
+        add(f"사후: 첫 오퍼 {level}, C1, 마크업 중앙값, n = 1",
+            lambda level=level: src.cell(offer, "markup_n1", offer_base=level, config="C1"))
+        add(f"사후: 첫 오퍼 {level}, C1, 마크업 중앙값, n = 10",
+            lambda level=level: src.cell(offer, "markup_n10", offer_base=level, config="C1"))
+        add(f"사후: 첫 오퍼 {level}, C1, 체결률, n = 10",
+            lambda level=level: src.cell(offer, "match_n10", offer_base=level, config="C1"))
+
+    def took_offer(stat):
+        rows = [(i, r) for i, r in enumerate(src.rows(paths)) if r["offer_base"] == "1.00"]
+        if not rows:
+            raise Missing(f"{paths} (1.00 행 없음)")
+        i, r = (min if stat == "min" else max)(rows, key=lambda x: float(x[1]["took_offer_share"]))
+        return r["took_offer_share"], f"{paths}:{i + 2}:took_offer_share ({r['config']}, n = {r['n']})"
+    add("사후: 첫 오퍼 1.00에서 기사가 승객 오퍼를 수락해 끝난 거래 비율, 구성·n 중 최솟값", lambda: took_offer("min"))
+    add("사후: 첫 오퍼 1.00에서 기사가 승객 오퍼를 수락해 끝난 거래 비율, 구성·n 중 최댓값", lambda: took_offer("max"))
+    add("사후: E5, C1, τ = 0.05, 승객이 고른 체결 중 최저가가 아닌 호가 비율",
+        lambda: src.cell(rank, "share_nonlowest", config="C1", tau="0.05"))
+    add("사후: E5, C1, τ = 0.05, 최저가가 아닌 호가를 고를 때 더 낸 가격(기준가 대비)",
+        lambda: src.cell(rank, "extra_price_ratio_mean", config="C1", tau="0.05"))
+    add("사후: E5, C1, τ = 0.05, 최저가가 아닌 호가를 고를 때 줄어든 픽업 시간(분)",
+        lambda: src.cell(rank, "eta_saved_min_mean", config="C1", tau="0.05"))
+    add("사후: B1이 k/U = 1.0에서 얻는 MAE(동일 정확도 호출 절감률의 목표, mm/h)",
+        lambda: src.cell(psav, "target_mae", method="B1"))
+
+    def per_10k(method):
+        v, at = src.cell(t3, "mean_calls", method=method)
+        return int(round(float(v) * 10000)), f"{at} × 10,000"
+    add("사후: 경로 1만 건당 예보 호출 수, 현행 지점 조회", lambda: per_10k("current_points"))
+    add("사후: 경로 1만 건당 예보 호출 수, 제안(M2, 예산 비율 0.5)", lambda: per_10k("proposed_M2"))
     return items
 
 

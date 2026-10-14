@@ -59,3 +59,15 @@ def test_rank_premium_counts_only_picked_deals(tmp_path):
     assert np.isclose(c[5], (4 + 6) / 2)
     z = out[("C1", "0")]
     assert z[2] == 1 and z[3] == 0.0 and np.isnan(z[4]) and np.isnan(z[5])
+
+
+def test_offer_paths_shares_add_up(tmp_path):
+    header = ["config", "n_drivers", "status", "match_path", "end_reason"]
+    rows = [["C1", "5", "MATCHED", "DRIVER_TOOK_OFFER", ""], ["C1", "5", "MATCHED", "RIDER_PICKED_BID", ""],
+            ["C1", "5", "EXPIRED", "", "ROUND_LIMIT"], ["C1", "5", "EXPIRED", "", "TTL"],
+            ["C1", "1", "MATCHED", "DRIVER_TOOK_OFFER", ""]]
+    path = tmp_path / "deals_out.csv"
+    write_csv(path, header, rows)
+    out = po.paths_table((("0.90", path),))
+    assert out[0][:4] == ["0.90", "C1", 1, 1] and out[0][4] == 1.0
+    assert out[1][:4] == ["0.90", "C1", 5, 4] and out[1][4:] == [0.25, 0.25, 0.25, 0.25]

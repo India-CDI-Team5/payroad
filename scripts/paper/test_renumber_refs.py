@@ -90,6 +90,7 @@ def test_the_real_reference_list_parses():
     if not real.exists():
         pytest.skip("paper/ is local only")
     refs = rr.parse_references(real.read_text(encoding="utf-8"))
-    assert len(refs) == 19
-    for required in ("A1", "B1", "B3", "C1", "C5", "E1", "E2", "D1", "D2", "F3", "F1", "H1", "H3", "H2", "I1", "I2"):
+    assert len(refs) == 22                                          # 19 + F4, J1, J2 (paper-revision-v1 X7)
+    for required in ("A1", "B1", "B3", "C1", "C5", "E1", "E2", "D1", "D2", "F3", "F1", "H1", "H3", "H2", "I1", "I2",
+                     "F4", "J1", "J2"):
         assert required in refs
