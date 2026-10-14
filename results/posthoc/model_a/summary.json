@@ -1,0 +1,10 @@
+{
+  "utc": "2026-10-14T05:22:11Z",
+  "git_head": null,
+  "n_main": 491,
+  "n_holdout": 259,
+  "reproduction_checked_rows": 6750,
+  "reproduction_max_abs_diff": 4.999999159738017e-07,
+  "m2_saving": 0.26315789473684215,
+  "b1_first_rho": 0.95
+}
