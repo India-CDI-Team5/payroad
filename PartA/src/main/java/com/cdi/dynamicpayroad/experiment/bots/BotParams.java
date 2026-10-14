@@ -92,6 +92,20 @@ public record BotParams(
         return p;
     }
 
+    /**
+     * The same parameters with only {@code rider.offer_base} replaced, for the post-hoc first-offer
+     * sensitivity run (paper-revision-v1 X3). The frozen file itself is never rewritten.
+     */
+    public BotParams withOfferBase(double offerBase) {
+        if (!(offerBase >= 0.7 && offerBase <= 1.5)) {
+            throw new IllegalArgumentException("offer_base must be in [0.7, 1.5]: " + offerBase);
+        }
+        Rider r = rider;
+        Rider r2 = new Rider(r.budget(), r.tau(), r.patienceS(), r.aspiration(), r.checkIntervalS(), r.acceptDelayS(),
+                r.offerTimesS(), offerBase, r.offerStep());
+        return new BotParams(version, revisionNote, poolSize, dealsPerRun, defaultN, seeds, driver, r2, configs, sweeps);
+    }
+
     /** U(r[0], r[1]) from a uniform draw {@code x} in [0, 1). */
     public static double u(double[] r, double x) {
         return r[0] + (r[1] - r[0]) * x;

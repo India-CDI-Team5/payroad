@@ -116,6 +116,10 @@ public final class ExperimentRunner {
         }
         DealSource source = DealSource.read(cfg.deals());
         BotParams params = smoke ? null : BotParams.read(BotParams.DEFAULT_PATH);
+        if (params != null && cfg.offerBase() != null) {
+            params = params.withOfferBase(cfg.offerBase());
+            System.out.println("offer_base override = " + cfg.offerBase());
+        }
 
         RedisURI uri = RedisURI.create(cfg.redisUrl());
         RedisClient client = RedisClient.create(uri);

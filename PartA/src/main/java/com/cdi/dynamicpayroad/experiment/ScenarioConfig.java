@@ -29,7 +29,9 @@ public record ScenarioConfig(
         boolean betaOff,
         List<Double> ringShares,
         String strategy,
-        String redisUrl) {
+        String redisUrl,
+        /** rider.offer_base override for a post-hoc e1 run (paper-revision-v1 X3); null = bot-params.json. */
+        Double offerBase) {
 
     public static final String DEFAULT_REDIS_URL = "redis://localhost:6379/14";
     public static final long DEFAULT_SEED = 42;
@@ -42,7 +44,7 @@ public record ScenarioConfig(
         Long seed = null;
         List<Long> seeds = null;
         Integer n = null, dealsPerRun = null, offerTtl = null, roundLimit = null;
-        Double tau = null;
+        Double tau = null, offerBase = null;
         boolean betaOff = false;
         List<Double> ringShares = null;
 
@@ -74,6 +76,7 @@ public record ScenarioConfig(
                     if (!STRATEGIES.contains(strategy)) throw new IllegalArgumentException("--strategy must be S1..S5: " + strategy);
                 }
                 case "--redis-url" -> redisUrl = value(args, ++i, a);
+                case "--offer-base" -> offerBase = parseDouble(value(args, ++i, a), a);
                 default -> throw new IllegalArgumentException("unknown argument: " + a);
             }
         }
@@ -81,6 +84,7 @@ public record ScenarioConfig(
         if (scenario == null || scenario.isBlank()) throw new IllegalArgumentException("--scenario is required");
         if (seed != null && seeds != null) throw new IllegalArgumentException("give --seed or --seeds, not both");
         if (seeds == null && seed != null) seeds = List.of(seed);
+        if (offerBase != null && !scenario.equals("e1")) throw new IllegalArgumentException("--offer-base is only for e1");
         if (out == null) out = Path.of("../results/sim", scenario);
         if (rawOut == null) {
             rawOut = scenario.equals("collusion") && strategy != null
@@ -97,7 +101,7 @@ public record ScenarioConfig(
 
         return new ScenarioConfig(scenario, deals, seeds == null ? null : List.copyOf(seeds), config, n, dealsPerRun,
                 out, rawOut, offerTtl, roundLimit, tau, betaOff, ringShares == null ? null : List.copyOf(ringShares), strategy,
-                redisUrl);
+                redisUrl, offerBase);
     }
 
     /** --seed / --seeds, or {@code fallback} when neither was given (the scenario decides). */
