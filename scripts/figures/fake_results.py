@@ -100,6 +100,11 @@ def sim(root, rng):
             e1.append([c, n, 30, m, m - 0.04, m + 0.04, 0.5 + 0.04 * n, 0.45 + 0.04 * n, 0.55 + 0.04 * n])
     _write(root, "sim/E1_summary.csv", ["config", "n", "runs", "markup_median", "ci_lo", "ci_hi", "match_rate",
                                         "mr_ci_lo", "mr_ci_hi"], e1)
+    for level, base in (("ob090", 0.9), ("ob100", 1.0)):        # post-hoc first-offer runs (F10)
+        rows = [[c, n, 30, base, base, base, 0.95 + 0.004 * n, 0.94 + 0.004 * n, 0.96 + 0.004 * n]
+                for c in CONFIGS for n in range(1, 11)]
+        _write(root, f"posthoc/sim/{level}/E1_summary.csv", ["config", "n", "runs", "markup_median", "ci_lo", "ci_hi",
+                                                             "match_rate", "mr_ci_lo", "mr_ci_hi"], rows)
     rounds = []
     for c in CONFIGS:
         w = [rng.random() for _ in range(20)]

@@ -35,8 +35,9 @@ METHOD_STYLE = {
     "B1-L": {"color": "#D55E00", "linestyle": "--", "marker": "s"},
     "B2": {"color": "#56B4E9", "linestyle": "-", "marker": "^"},
     "B2-L": {"color": "#0072B2", "linestyle": "--", "marker": "v"},
-    "M1": {"color": "#009E73", "linestyle": "-", "marker": "D", "linewidth": 1.8},
-    "M2": {"color": "#CC79A7", "linestyle": "-", "marker": "P"},
+    "M1": {"color": "#009E73", "linestyle": "-", "marker": "D"},
+    # The proposed method stands out: black and thickest (paper-revision-v1 X6).
+    "M2": {"color": "#000000", "linestyle": "-", "marker": "P", "linewidth": 2.2},
 }
 CONFIGS = ["C1", "C2", "C3", "C4"]
 CONFIG_COLORS = {"C1": "#000000", "C2": "#E69F00", "C3": "#56B4E9", "C4": "#CC79A7"}

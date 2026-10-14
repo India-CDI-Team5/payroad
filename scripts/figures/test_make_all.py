@@ -14,7 +14,7 @@ import style  # noqa: E402
 import t1  # noqa: E402
 
 FIGURES = ["F1_curve.png", "F1_kabs.png", "F2_uncertainty.png", "F3_markup.png", "F4_rounds.png", "F8_heatmap.png",
-           "F9_collusion.png"]
+           "F9_collusion.png", "F10_offer.png"]
 TABLES = ["T1", "T2", "T3", "T4", "T5", "T6"]
 
 
@@ -52,7 +52,7 @@ def test_missing_inputs_are_skipped_and_listed(tmp_path):
     os.remove(os.path.join(results, "collusion", "T6_S5.csv"))
     lines = []
     _, skipped = make_all.make_all(results, str(tmp_path / "f"), str(tmp_path / "t"), log=lines.append)
-    assert [s[0] for s in skipped] == ["F3", "T6"]
+    assert [s[0] for s in skipped] == ["F3", "F10", "T6"]
     assert lines[-1].startswith("skipped: F3 (sim")
     assert not (tmp_path / "f" / "F3_markup.png").exists()
 

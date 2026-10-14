@@ -5,8 +5,8 @@
 ## 그림
 
 - **F1** (F1_curve.png)
-  - 조회 예산 비율에 따른 경로 평균 강수 오차
-  - Route-mean precipitation error versus query budget
+  - 조회 예산 비율에 따른 경로 평균 강수 오차(k/U = 1.0에서 셀 기반 방법은 전수 조회와 같아 오차 0, B0 0.274는 본문)
+  - Route-mean precipitation error versus query budget (cell-based methods are exact at k/U = 1.0; B0, 0.274, is in the text)
 - **F1_kabs** (F1_kabs.png)
   - 조회 횟수 k에 따른 경로 평균 강수 오차
   - Route-mean precipitation error versus number of queries k
@@ -24,7 +24,10 @@
   - Match rate by offer TTL and round limit
 - **F9** (F9_collusion.png)
   - 미학습 전략 S4의 담합 탐지 성능과 담합 비율에 따른 마크업 변화
-  - Collusion detection on unseen strategy S4 and markup change by ring share
+  - Collusion detection on unseen strategy S4 and markup change by collusion share
+- **F10** (F10_offer.png)
+  - 승객 첫 오퍼 수준별 호가 기사 수에 따른 마크업 중앙값과 체결률(C1, 사후 분석)
+  - Median markup and match rate versus bidding drivers by the rider's first offer (C1, post hoc)
 
 ## 표
 
@@ -35,7 +38,7 @@
   - 강수 할증 계수에 따른 할증 판단 일치율
   - Surcharge agreement by precipitation coefficient
 - **T3** (T3.md)
-  - 경로당 예보 조회 횟수와 캐시 키별 적중률
+  - 경로당 예보 호출 수와 캐시 키별 적중률
   - Forecast calls per route and cache hit rate by key
 - **T4** (T4.md)
   - 역경매 흥정과 고정가의 체결률·체결 시간 비교

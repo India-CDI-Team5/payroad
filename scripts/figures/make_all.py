@@ -25,6 +25,7 @@ ITEMS = [
     ("F4", "f4_rounds", "figure"),
     ("F8", "f8_heatmap", "figure"),
     ("F9", "f9_collusion", "figure"),
+    ("F10", "f10_offer", "figure"),
     ("T1", "t1", "table"),
     ("T2", "t2", "table"),
     ("T3", "t3", "table"),

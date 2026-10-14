@@ -34,15 +34,15 @@ def make(results_dir, out_dir):
 
     fig, (a, b) = plt.subplots(1, 2, figsize=style.SINGLE)
     _series(a, f9, "method", "pr_auc", "ci_lo", "ci_hi")
-    a.set_xlabel("Ring share")
+    a.set_xlabel("Collusion share")
     a.set_ylabel("PR-AUC (S4)")
     a.set_title("(a)", fontsize=8)
     a.legend(**LEGEND)
 
     _series(b, e7, "strategy", "delta_vs_0", "ci_lo", "ci_hi")
     b.axhline(0, color="#999999", linestyle=":", linewidth=1.0)
-    b.set_xlabel("Ring share")
-    b.set_ylabel("Markup change vs no ring")
+    b.set_xlabel("Collusion share")
+    b.set_ylabel("Markup change vs no collusion")
     b.set_title(f"(b) {E7_CONFIG}", fontsize=8)
     b.legend(**LEGEND)
     fig.tight_layout()
