@@ -466,6 +466,15 @@ def collect(root):
     for m in ["B1", "M2"]:
         add(f"사후: MAIN 예산 비율 0.5 할증 판단의 Cohen κ, {m}", lambda m=m: src.cell(kap, "kappa", method=m))
     add("사후: MAIN 예산 비율 0.5 할증 판단의 재현율, M2", lambda: src.cell(kap, "recall", method="M2"))
+
+    # Fourth feedback round (paper-revision-v1 X16, 2026-10-15, appended).
+    pcell, kaprs = f"{ph}/previous_cells_mae.csv", f"{ph}/surcharge_kappa_rs.csv"
+    add("사후: 이전 지점의 고유 셀만 조회(중복 셀 제거) MAE(mm/h) [95% CI], HOLDOUT",
+        lambda: with_ci(pcell, "mae", "ci_lo", "ci_hi", subset="HOLDOUT"))
+    add("사후: 이전 지점의 고유 셀만 조회할 때 경로당 평균 호출 수, HOLDOUT", lambda: src.cell(pcell, "mean_cells", subset="HOLDOUT"))
+    add("사후: MAIN 예산 비율 0.5 할증 판단 β(r, 0)의 Cohen κ, M1", lambda: src.cell(kap, "kappa", method="M1"))
+    for m in ["M1", "M2"]:
+        add(f"사후: MAIN 예산 비율 0.5 할증 판단 β(r, s)의 Cohen κ, {m}", lambda m=m: src.cell(kaprs, "kappa", method=m))
     return items
 
 

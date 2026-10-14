@@ -43,3 +43,13 @@ def test_kbin_table(tmp_path):
     rows = px.kbin_table(path)
     got = {(r["k_bin"], r["method"]): (r["n"], r["mae"]) for r in rows}
     assert got == {("2", "M2"): (2, pytest.approx(0.2)), (">=3", "M2"): (1, 0.2), (">=3", "H-P"): (1, 0.4)}
+
+
+def test_previous_cell_rows_query_each_touched_cell_once():
+    cells = np.array([1] * 5 + [2] * 5 + [3] * 5 + [4] * 5)
+    y = np.repeat([1.0, 0.0, 0.0, 3.0], 5)
+    case = {"flags": {"HOLDOUT"}, "week": "2025-W01", "route": {"distance_km": 9.5}, "y": y,
+            "oracle": RouteOracle(cells, y), "s": np.arange(20) * 0.5, "t": np.arange(20.0)}
+    (subset, week, calls, ncells, err), = px.previous_cell_rows([case])
+    assert (subset, calls, ncells) == ("HOLDOUT", 4, 4)
+    assert err == pytest.approx(0.0)                             # all four cells revealed: the full query

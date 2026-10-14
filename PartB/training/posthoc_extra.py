@@ -8,6 +8,10 @@ The test split was opened on 2026-10-08 (card B6); everything here is post hoc a
   kbin_mae.csv         MAE by k (1, 2, >= 3) at every rho, from placement_per_sample.csv.gz (X2 output).
   surcharge_kappa.csv  surcharge decision beta(r, 0) > threshold against the truth on MAIN at rho = 0.5, from
                        test_per_sample.csv.gz: base rate, agreement, recall, precision, F1 and Cohen's kappa.
+Added for the fourth round (X16), earlier outputs unchanged:
+  previous_cells_mae.csv   the previous points with duplicate cells removed: each distinct cell they touch is queried
+                           once (all its points revealed), the rest filled with the nearest value.
+  surcharge_kappa_rs.csv   as surcharge_kappa.csv for beta(r, s), the rule that uses the GP standard deviation.
 
 Run from PartB/ (the first table reads parquet, so inside Docker on this PC):
     python -m training.posthoc_extra [--out-dir DIR]
@@ -25,6 +29,7 @@ import sys  # noqa: E402
 import numpy as np  # noqa: E402
 
 from training import final_eval  # noqa: E402
+from weather.interpolate import nearest_fill  # noqa: E402
 from weather.methods import run  # noqa: E402
 from weather.stats import week_bootstrap_ci  # noqa: E402
 
@@ -35,6 +40,8 @@ COLUMNS = {
     "previous_mae.csv": ("subset", "n", "mean_points", "mean_cells", "mae", "ci_lo", "ci_hi"),
     "kbin_mae.csv": ("subset", "rho", "k_bin", "method", "n", "mae"),
     "surcharge_kappa.csv": ("method", "n", "base_rate", "agreement", "recall", "precision", "f1", "kappa"),
+    "previous_cells_mae.csv": ("subset", "n", "mean_points", "mean_cells", "mae", "ci_lo", "ci_hi"),
+    "surcharge_kappa_rs.csv": ("method", "n", "base_rate", "agreement", "recall", "precision", "f1", "kappa"),
 }
 
 
@@ -61,6 +68,23 @@ def previous_rows(cases):
         r = run("B1", c["oracle"], c["s"], c["t"], n)
         cells = len(set(c["oracle"].cell[r.obs_idx].tolist()))
         out.append((subset, c["week"], n, cells, abs(float(np.mean(r.y_hat)) - float(np.mean(c["y"])))))
+    return out
+
+
+def previous_cell_rows(cases):
+    """As previous_rows, but each distinct cell of the previous points is queried once and reveals all its points."""
+    out = []
+    for c in cases:
+        subset = next((x for x in SUBSETS if x in c["flags"]), None)
+        if subset is None:
+            continue
+        o, P = c["oracle"], len(c["s"])
+        n = min(sample_count(c["route"]["distance_km"]), P)
+        pts = run("B1", o, c["s"], c["t"], n).obs_idx
+        cells = list(dict.fromkeys(o.cell[pts].tolist()))
+        idx, y, _ = o.reveal_cells(cells)
+        y_hat = nearest_fill(c["s"], idx, y)
+        out.append((subset, c["week"], len(cells), len(cells), abs(float(np.mean(y_hat)) - float(np.mean(c["y"])))))
     return out
 
 
@@ -109,14 +133,14 @@ def kappa_row(method, truth, pred):
             "precision": precision, "f1": f1, "kappa": (po - pe) / (1 - pe) if pe < 1 else float("nan")}
 
 
-def surcharge_table(per_sample_path, rho="0.5"):
+def surcharge_table(per_sample_path, rho="0.5", flag="flag_beta_r"):
     acc = {}
     with gzip.open(per_sample_path, "rt", encoding="utf-8", newline="") as f:
         for r in csv.DictReader(f):
             if r["rho"] == rho and "MAIN" in r["subset_flags"].split("|"):
                 t, p = acc.setdefault(r["method"], ([], []))
                 t.append(r["flag_true"] == "1")
-                p.append(r["flag_beta_r"] == "1")
+                p.append(r[flag] == "1")
     return [kappa_row(m, *acc[m]) for m in acc]
 
 
@@ -131,7 +155,10 @@ def main(argv=None):
     cases = final_eval.load_cases(args.data_dir)
     tables = {"previous_mae.csv": previous_table(previous_rows(cases)),
               "kbin_mae.csv": kbin_table(args.placement),
-              "surcharge_kappa.csv": surcharge_table(os.path.join(args.frozen_dir, "test_per_sample.csv.gz"))}
+              "surcharge_kappa.csv": surcharge_table(os.path.join(args.frozen_dir, "test_per_sample.csv.gz")),
+              "previous_cells_mae.csv": previous_table(previous_cell_rows(cases)),
+              "surcharge_kappa_rs.csv": surcharge_table(os.path.join(args.frozen_dir, "test_per_sample.csv.gz"),
+                                                        flag="flag_beta_rs")}
     os.makedirs(args.out_dir, exist_ok=True)
     for name, table in tables.items():
         final_eval.write_csv(os.path.join(args.out_dir, name), COLUMNS[name], table)
