@@ -478,6 +478,24 @@ def collect(root):
 
     # Fifth round (paper-revision-v2 Y3, 2026-10-15, appended): the before/after call count in the abstract.
     add("T3 경로당 평균 호출 수, 경로의 셀 전부 조회", lambda: src.cell(t3, "mean_calls", method="all_cells_U"))
+
+    # Sixth round (2026-10-16, appended): pre-registered temporal hold-out check, docs/temporal-check.md.
+    tmae, ttest, tsum = "results/temporal/mae.csv", "results/temporal/tests.csv", "results/temporal/summary.json"
+    add("시간 보류: 표본 수", lambda: src.json(tsum, "n_samples"))
+    for m in ["B1", "M1", "M2", "H-P"]:
+        add(f"시간 보류: 예산 비율 0.5 MAE, {m}", lambda m=m: src.cell(tmae, "mae", rho=0.5, method=m))
+    for t in ["T-1", "T-2"]:
+        add(f"시간 보류: {t} Holm 보정 p", lambda t=t: src.cell(ttest, "p_holm", test=t))
+        add(f"시간 보류: {t} 평균 차이", lambda t=t: src.cell(ttest, "mean_diff", test=t))
+    add("시간 보류: 예산 비율 0.25 MAE, M2", lambda: src.cell(tmae, "mae", rho=0.25, method="M2"))
+    add("시간 보류: 예산 비율 0.25 MAE, B1", lambda: src.cell(tmae, "mae", rho=0.25, method="B1"))
+
+    def fare_share():
+        """M2's route-mean MAE at ρ = 0.5 as a share of the base fare: β moves by c_β per mm/h (unclipped)."""
+        c, cw = src.json("config/pricing-constants.json", "betaCoef")
+        m, mw = src.cell("results/model_a/F1_curve.csv", "mae", subset="MAIN", method="M2", rho=0.5)
+        return 100 * float(c) * float(m), f"100 × {cw} × {mw}"
+    add("M2 ρ = 0.5 MAE를 기준가 비율(%)로: 100 × c_β × MAE", fare_share)
     return items
 
 
