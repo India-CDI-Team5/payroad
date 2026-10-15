@@ -497,6 +497,7 @@ def collect(root):
         return 100 * float(c) * float(m), f"100 × {cw} × {mw}"
     add("M2 ρ = 0.5 MAE를 기준가 비율(%)로: 100 × c_β × MAE", fare_share)
     add("1일 전 예보 검증 표본에서 M1 ρ = 0.5 MAE(mm/h)", lambda: src.cell("results/model_a/forecast_error.csv", "m1_mae_rho50", n=389))
+    add("km당 요금 perKm(₹), 벵갈루루 오토릭샤 고시", lambda: src.json("config/pricing-constants.json", "perKm"))
     return items
 
 
