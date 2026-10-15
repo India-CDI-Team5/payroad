@@ -502,6 +502,14 @@ def collect(root):
     add("셀 확인: 경로 지점 표본 수", lambda: src.json(cc, "n_points"))
     add("셀 확인: 예보 API 기본 설정에서 반환 셀 = 배정 셀 비율", lambda: src.json(cc, "forecast_default.match_rate"))
     add("셀 확인: 과거 API 기본 설정에서 반환 셀 = 배정 셀 비율", lambda: src.json(cc, "archive_default.match_rate"))
+    kc = "results/cluster_check/summary.json"
+    add("군집 확인: 주 분석 테스트 표본의 서로 다른 경로 수", lambda: src.json(kc, "main_test_routes"))
+    add("군집 확인: 주 분석 테스트 표본의 ISO 주 수", lambda: src.json(kc, "main_test_weeks"))
+    def cluster_max_p():
+        keys = ["pre_M2_vs_M1", "posthoc_HP_vs_M2", "temporal_HP_vs_M2", "temporal_M2_vs_B1"]
+        ps = [src.json(kc, f"{k}.{c}.p")[0] for k in keys for c in ("route", "week")]
+        return max(ps), f"max of {kc}: {{key}}.{{route,week}}.p"
+    add("군집 확인: 경로·주 평균 Wilcoxon p의 최댓값(주요 비교 4개)", cluster_max_p)
     return items
 
 

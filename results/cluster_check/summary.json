@@ -1,0 +1,60 @@
+{
+  "main_test_routes": 297,
+  "main_test_weeks": 25,
+  "pre_M2_vs_M1": {
+    "route": {
+      "n_samples": 491,
+      "n_clusters": 297,
+      "mean_diff": -0.029198170033670034,
+      "p": 4.39038426062364e-09
+    },
+    "week": {
+      "n_samples": 491,
+      "n_clusters": 25,
+      "mean_diff": -0.02481906841476755,
+      "p": 0.0005564093589782715
+    }
+  },
+  "posthoc_HP_vs_M2": {
+    "route": {
+      "n_samples": 491,
+      "n_clusters": 297,
+      "mean_diff": -0.016398641414141414,
+      "p": 7.513311985677533e-06
+    },
+    "week": {
+      "n_samples": 491,
+      "n_clusters": 25,
+      "mean_diff": -0.014463388089145048,
+      "p": 0.002507925033569336
+    }
+  },
+  "temporal_HP_vs_M2": {
+    "route": {
+      "n_samples": 1512,
+      "n_clusters": 378,
+      "mean_diff": -0.007645216967941184,
+      "p": 2.824956544043866e-05
+    },
+    "week": {
+      "n_samples": 1512,
+      "n_clusters": 37,
+      "mean_diff": -0.008559815133353075,
+      "p": 0.00035424670204520226
+    }
+  },
+  "temporal_M2_vs_B1": {
+    "route": {
+      "n_samples": 1512,
+      "n_clusters": 378,
+      "mean_diff": -0.01935391530670733,
+      "p": 5.10181405999132e-15
+    },
+    "week": {
+      "n_samples": 1512,
+      "n_clusters": 37,
+      "mean_diff": -0.01759141597206292,
+      "p": 2.4441396817564964e-07
+    }
+  }
+}
