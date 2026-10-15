@@ -85,7 +85,7 @@ def draw(path, cell_points=CELL_POINTS, k=K):
         shade = "#d9d9d9" if c % 2 == 0 else "#f2f2f2"
         ax.add_patch(Rectangle((s0, -0.5), w, n + 0.9, facecolor=shade, linewidth=0, zorder=0))
         ax.text(s0 + w / 2, n + 0.15, str(w), ha="center", va="center", fontsize=7)
-    ax.text(-0.5, n + 0.15, "pts/cell", ha="right", va="center", fontsize=6.5)
+    ax.text(-0.5, n + 0.15, "pts/cell", ha="right", va="center", fontsize=7)
 
     for i, (label, key, chosen, note) in enumerate(rows):
         y = n - 1 - i
@@ -109,7 +109,7 @@ def draw(path, cell_points=CELL_POINTS, k=K):
     ax.tick_params(axis="y", length=0)
     for side in ("top", "right"):
         ax.spines[side].set_visible(False)
-    ax.text(P / 2, -0.95, "×: repeated cell", ha="center", va="top", fontsize=6.5, color="#D55E00")
+    ax.text(P / 2, -0.95, "×: repeated cell", ha="center", va="top", fontsize=7, color="#D55E00")
     return style.save(fig, path)
 
 
