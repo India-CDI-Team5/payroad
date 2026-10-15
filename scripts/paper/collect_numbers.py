@@ -475,6 +475,9 @@ def collect(root):
     add("사후: MAIN 예산 비율 0.5 할증 판단 β(r, 0)의 Cohen κ, M1", lambda: src.cell(kap, "kappa", method="M1"))
     for m in ["M1", "M2"]:
         add(f"사후: MAIN 예산 비율 0.5 할증 판단 β(r, s)의 Cohen κ, {m}", lambda m=m: src.cell(kaprs, "kappa", method=m))
+
+    # Fifth round (paper-revision-v2 Y3, 2026-10-15, appended): the before/after call count in the abstract.
+    add("T3 경로당 평균 호출 수, 경로의 셀 전부 조회", lambda: src.cell(t3, "mean_calls", method="all_cells_U"))
     return items
 
 
