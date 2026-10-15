@@ -1,0 +1,17 @@
+{
+  "n_points": 600,
+  "n_route_points": 24945,
+  "stored_cell_equals_nearest": 1.0,
+  "forecast_default": {
+    "match_rate": 1.0,
+    "returned_in_grid_cells": 1.0
+  },
+  "forecast_nearest": {
+    "match_rate": 1.0,
+    "returned_in_grid_cells": 1.0
+  },
+  "archive_default": {
+    "match_rate": 1.0,
+    "returned_in_grid_cells": 1.0
+  }
+}

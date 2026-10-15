@@ -498,6 +498,10 @@ def collect(root):
     add("M2 ρ = 0.5 MAE를 기준가 비율(%)로: 100 × c_β × MAE", fare_share)
     add("1일 전 예보 검증 표본에서 M1 ρ = 0.5 MAE(mm/h)", lambda: src.cell("results/model_a/forecast_error.csv", "m1_mae_rho50", n=389))
     add("km당 요금 perKm(₹), 벵갈루루 오토릭샤 고시", lambda: src.json("config/pricing-constants.json", "perKm"))
+    cc = "results/cell_check/summary.json"
+    add("셀 확인: 경로 지점 표본 수", lambda: src.json(cc, "n_points"))
+    add("셀 확인: 예보 API 기본 설정에서 반환 셀 = 배정 셀 비율", lambda: src.json(cc, "forecast_default.match_rate"))
+    add("셀 확인: 과거 API 기본 설정에서 반환 셀 = 배정 셀 비율", lambda: src.json(cc, "archive_default.match_rate"))
     return items
 
 
