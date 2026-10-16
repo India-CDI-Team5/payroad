@@ -19,7 +19,22 @@ def test_range_rule_needs_two_cells():
 
 
 def test_tune_keeps_calls_at_or_under_target():
-    val = [{"m": 0.0, "B": (2, 0.0), "traj": steps(0.3, 0.12, 0.04)} for _ in range(3)]
+    val = [{"m": 0.0, "Bs": {0.5: (3, 0.0)}, "traj": steps(0.3, 0.12, 0.04)} for _ in range(3)]
     ch = ab.tune(val)
-    assert ch["target_calls"] == 2 and ch["A_val"][0] <= 2
-    assert ch["tau"] > 0.12                                       # the largest-calls tau not over 2 calls
+    assert abs(ch["target_calls"] - 2.91) < 1e-9 and ch["A_val"][0] <= 2.91
+    assert ch["tau"] > 0.12                                       # 3 calls would exceed 0.97 x 3: stop at 2
+
+
+def test_judge_primary_needs_holm_supporting_needs_direction():
+    base = {"A_calls": 2.0, "B_calls": 2.0, "C_calls": 2.0}
+    tests = [{"set": "temporal", "vs": "B", "p": 1e-4, "mean_diff": -0.01, **base},
+             {"set": "temporal", "vs": "C", "p": 1e-3, "mean_diff": -0.01, **base},
+             {"set": "MAIN", "vs": "B", "p": 0.2, "mean_diff": -0.01, **base},
+             {"set": "MAIN", "vs": "C", "p": 0.2, "mean_diff": 0.001, **base}]
+    assert not ab.judge(tests)                                    # MAIN A-C has the wrong direction
+    tests[3]["mean_diff"] = -0.001
+    assert ab.judge([{k: v for k, v in t.items() if k not in ("p_holm", "passed", "role", "calls_ok")} for t in tests])
+
+
+def test_kappa():
+    assert ab.kappa([1, 0, 1, 0], [1, 0, 1, 0]) == 1.0

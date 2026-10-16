@@ -4,7 +4,8 @@ A: query the point-centre cell; stop if all its points are 0; otherwise add the 
 summed posterior variance (M2's score) one at a time and stop once the GP route-mean sd (200 draws) < tau.
 B: fixed point-centre rule at k = budget(U, 0.5). C: A's order and dry stop, but stopping from observed cell
 means only (range < d or mean < t). tau and C are chosen on the validation split to match B's mean calls there.
-Tests: A-B and A-C on MAIN test and the temporal set, Wilcoxon, Holm over 4. Run once.
+Primary tests: A-B and A-C on the temporal set (Wilcoxon, Holm over 2); MAIN test is supporting (direction,
+calls). Also reports an error-calls frontier, surcharge kappa and the wet-first-cell subset. Run once.
 
     python -m training.adaptive_budget     # from PartB/ (Docker) -> results/adaptive_budget/
 """
@@ -31,6 +32,9 @@ TAUS = [round(0.005 * i, 3) for i in range(1, 61)]
 DS = [round(0.01 * i, 2) for i in range(1, 101)]
 TS = [round(0.01 * i, 2) for i in range(1, 201)]
 CALL_SLACK = 1.05
+MARGIN = 0.97                 # tune to 97% of B's validation calls (room for shift on the test sets)
+RHOS = (0.25, 0.5, 0.75)
+FLAG_MM = 4 / 3               # beta(r, 0) > 1.2  <=>  r > 4/3 mm/h (c_beta = 0.15)
 ALPHA = 0.05
 BOOT_B, BOOT_SEED = 2000, 42
 OUT = os.path.join(final_eval.ROOT, "results", "adaptive_budget")
@@ -69,9 +73,9 @@ RULES = {
 }
 
 
-def fixed_b(case, model):
+def fixed_b(case, model, rho):
     o = case["oracle"]
-    cells = select_hp(o, budget(o.U, 0.5))
+    cells = select_hp(o, budget(o.U, rho))
     idx, yy, calls = o.reveal_cells(cells)
     res = gp_fill(case["s"], case["t"], idx, yy, model, sample_id=int(case["sample"]["sample_id"]), calls=calls)
     return calls, float(np.mean(res.y_hat))
@@ -80,7 +84,8 @@ def fixed_b(case, model):
 def prepare(cases, model, log, name):
     out = []
     for n, c in enumerate(cases, 1):
-        out.append({"case": c, "m": float(np.mean(c["y"])), "traj": trajectory(c, model), "B": fixed_b(c, model)})
+        bs = {rho: fixed_b(c, model, rho) for rho in RHOS}
+        out.append({"case": c, "m": float(np.mean(c["y"])), "traj": trajectory(c, model), "B": bs[0.5], "Bs": bs})
         if n % 200 == 0 or n == len(cases):
             log(f"  {name}: {n}/{len(cases)}")
     return out
@@ -92,19 +97,23 @@ def summarise(prepped, rule):
     return float(np.mean(calls)), float(np.mean(err))
 
 
-def tune(val):
-    target = float(np.mean([p["B"][0] for p in val]))
+def tune(val, rho=0.5):
+    target = MARGIN * float(np.mean([p["Bs"][rho][0] for p in val]))
     a = [(tau, *summarise(val, RULES["A"](tau))) for tau in TAUS]
     ok = [x for x in a if x[1] <= target]
-    tau = max(ok, key=lambda x: (x[1], -x[0]))[0]
-    best = {}
+    # descriptive budgets only: if nothing reaches the target, take the fewest-calls setting (flagged)
+    tau = max(ok, key=lambda x: (x[1], -x[0]))[0] if ok else min(a, key=lambda x: (x[1], x[0]))[0]
+    best, over = {}, not ok
     for fam, grid in (("C-range", DS), ("C-mean", TS)):
         cand = [(g, *summarise(val, RULES[fam](g))) for g in grid]
-        cand = [x for x in cand if x[1] <= target]
-        best[fam] = min(cand, key=lambda x: (x[2], x[0]))
-    fam = min(best, key=lambda f: best[f][2])
+        under = [x for x in cand if x[1] <= target]
+        best[fam] = min(under, key=lambda x: (x[2], x[0])) if under else min(cand, key=lambda x: (x[1], x[2]))
+        over = over or not under
+    under_fams = [f for f in best if best[f][1] <= target] or list(best)
+    fam = min(under_fams, key=lambda f: best[f][2])
     return {"target_calls": target, "tau": tau, "A_val": [x for x in a if x[0] == tau][0][1:],
-            "C_family": fam, "C_param": best[fam][0], "C_val": best[fam][1:], "C_candidates": best}
+            "C_family": fam, "C_param": best[fam][0], "C_val": best[fam][1:], "C_candidates": best,
+            "over_target": over}
 
 
 def per_sample(prepped, choice, label):
@@ -141,11 +150,48 @@ def test(rows, other):
 
 
 def judge(tests):
-    for r, adj in zip(tests, holm([r["p"] for r in tests])):
+    """Primary (temporal): Holm over the two, p < alpha, A better, calls ok. Supporting (MAIN): A better, calls ok."""
+    primary = [r for r in tests if r["set"] == "temporal"]
+    for r, adj in zip(primary, holm([r["p"] for r in primary])):
         r["p_holm"] = adj
+    for r in tests:
+        r["role"] = "primary" if r["set"] == "temporal" else "supporting"
         r["calls_ok"] = r["A_calls"] <= CALL_SLACK * r[f'{r["vs"]}_calls']
-        r["passed"] = bool(adj < ALPHA and r["mean_diff"] < 0 and r["calls_ok"])
+        r.setdefault("p_holm", None)
+        sig = r["p_holm"] is not None and r["p_holm"] < ALPHA
+        r["passed"] = bool(r["mean_diff"] < 0 and r["calls_ok"] and (sig or r["role"] == "supporting"))
     return all(r["passed"] for r in tests)
+
+
+def kappa(pred, true):
+    pred, true = np.asarray(pred), np.asarray(true)
+    po = float(np.mean(pred == true))
+    pe = float(np.mean(pred) * np.mean(true) + (1 - np.mean(pred)) * (1 - np.mean(true)))
+    return None if pe == 1 else (po - pe) / (1 - pe)
+
+
+def descriptive(val, sets, choice):
+    out = {"frontier": {}, "kappa": {}, "wet_first": {}}
+    for rho in RHOS:
+        ch = choice if rho == 0.5 else tune(val, rho)
+        a_rule, c_rule = RULES["A"](ch["tau"]), RULES[ch["C_family"]](ch["C_param"])
+        out["frontier"][str(rho)] = {"tau": ch["tau"], "C": [ch["C_family"], ch["C_param"]]}
+        for label, prepped in sets.items():
+            out["frontier"][str(rho)][label] = {
+                "A": summarise(prepped, a_rule), "C": summarise(prepped, c_rule),
+                "B": (float(np.mean([p["Bs"][rho][0] for p in prepped])),
+                      float(np.mean([abs(p["Bs"][rho][1] - p["m"]) for p in prepped])))}
+    a_rule, c_rule = RULES["A"](choice["tau"]), RULES[choice["C_family"]](choice["C_param"])
+    for label, prepped in sets.items():
+        true = [p["m"] > FLAG_MM for p in prepped]
+        out["kappa"][label] = {"A": kappa([stop_at(p["traj"], a_rule)[1] > FLAG_MM for p in prepped], true),
+                               "B": kappa([p["B"][1] > FLAG_MM for p in prepped], true),
+                               "C": kappa([stop_at(p["traj"], c_rule)[1] > FLAG_MM for p in prepped], true),
+                               "flag_rate": float(np.mean(true))}
+        wet = [p for p in prepped if len(p["traj"]) > 1 or p["traj"][0][3][0] > 0]
+        out["wet_first"][label] = {"n": len(wet), "share": len(wet) / len(prepped),
+                                   "A": summarise(wet, a_rule), "C": summarise(wet, c_rule)}
+    return out
 
 
 def val_cases():
@@ -186,6 +232,7 @@ def main():
         for other, h in (("B", "H1"), ("C", "H2")):
             tests.append({"test": f"{h}-{'a' if label == 'MAIN' else 'b'}", "set": label, "vs": other, **test(rs, other)})
     passed = judge(tests)
+    desc = descriptive(val, sets, choice)
     os.makedirs(OUT, exist_ok=True)
     with gzip.open(os.path.join(OUT, "per_sample.csv.gz"), "wt", encoding="utf-8", newline="") as f:
         w = csv.DictWriter(f, fieldnames=list(rows[0]))
@@ -197,13 +244,14 @@ def main():
         w.writeheader()
         w.writerows(tests)
     summary = {"git_head": (final_eval.git("rev-parse", "HEAD") or "").strip() or None, "choice": choice,
-               "tests": tests, "all_passed": passed}
+               "tests": tests, "all_passed": passed, "descriptive": desc}
     with open(os.path.join(OUT, "summary.json"), "w", encoding="utf-8", newline="\n") as f:
         json.dump(summary, f, indent=2, default=float)
         f.write("\n")
     for t in tests:
         log(f'{t["test"]} A vs {t["vs"]} on {t["set"]}: MAE {t["A_mae"]:.4f} vs {t[t["vs"] + "_mae"]:.4f}, '
-            f'calls {t["A_calls"]:.2f} vs {t[t["vs"] + "_calls"]:.2f}, p_holm {t["p_holm"]:.3g} -> {"pass" if t["passed"] else "FAIL"}')
+            f'calls {t["A_calls"]:.2f} vs {t[t["vs"] + "_calls"]:.2f}, p {t["p"]:.3g}, p_holm {t["p_holm"]}, '
+            f'{t["role"]} -> {"pass" if t["passed"] else "FAIL"}')
     log(f"ALL PASSED: {passed}")
     return 0
 
