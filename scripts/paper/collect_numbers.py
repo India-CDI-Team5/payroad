@@ -510,6 +510,17 @@ def collect(root):
         ps = [src.json(kc, f"{k}.{c}.p")[0] for k in keys for c in ("route", "week")]
         return max(ps), f"max of {kc}: {{key}}.{{route,week}}.p"
     add("군집 확인: 경로·주 평균 Wilcoxon p의 최댓값(주요 비교 4개)", cluster_max_p)
+
+    # Seventh round (2026-10-16, appended): relative error reductions at the same budget (k/U = 0.5).
+    def rel(path, base, new, **where):
+        b, bw = src.cell(path, "mae", method=base, **where)
+        n, nw = src.cell(path, "mae", method=new, **where)
+        return 100 * (1 - float(n) / float(b)), f"100 × (1 − {nw} / {bw})"
+    f1 = "results/model_a/F1_curve.csv"
+    add("상대 오차 감소(%): MAIN 예산 0.5, B1 → M2", lambda: rel(f1, "B1", "M2", subset="MAIN", rho=0.5))
+    add("상대 오차 감소(%): MAIN 예산 0.5, M1 → M2", lambda: rel(f1, "M1", "M2", subset="MAIN", rho=0.5))
+    add("상대 오차 감소(%): 새 기간 예산 0.5, B1 → 지점 중앙(H-P)", lambda: rel(tmae, "B1", "H-P", rho=0.5))
+    add("상대 오차 감소(%): 새 기간 예산 0.5, B1 → M2", lambda: rel(tmae, "B1", "M2", rho=0.5))
     return items
 
 
