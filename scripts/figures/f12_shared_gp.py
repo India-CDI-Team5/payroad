@@ -22,8 +22,8 @@ OUT = os.path.join(ROOT, "results", "figures", "print", "F12_shared_gp.png")
 RATES = [5, 10, 20, 50]
 SERIES = [("P", "P", style.SERIES_STYLE[1]),
           ("N", "N", style.SERIES_STYLE[2]),
-          ("G", "G (shared GP)", {**style.SERIES_STYLE[0], "linewidth": 2.0})]
-SIZE = (2.0, 1.45)                     # inches = the printed width (5.1 cm), so 7 pt stays 7 pt
+          ("G", "G", {**style.SERIES_STYLE[0], "linewidth": 2.0})]
+SIZE = (1.5, 0.98)                     # inches: + ~0.7 cm of labels = the printed width (4.7 cm), so 7 pt stays 7 pt
 
 
 def series(runs, key):
@@ -42,7 +42,7 @@ def make(src=SRC, out=OUT):
     ax.text(2, 0.004, "tested", ha="center", va="bottom", fontsize=6, color="#555555")
     ax.set_xticks(x)
     ax.set_xticklabels([str(n) for n in RATES])
-    ax.set_xlabel("Requests per 10 min (same calls)")
+    ax.set_xlabel("Requests / 10 min")
     ax.set_ylabel("MAE (mm/h)")
     ax.set_ylim(0, 0.105)
     h, l = ax.get_legend_handles_labels()

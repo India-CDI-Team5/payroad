@@ -20,16 +20,20 @@ import style  # noqa: E402
 RESULTS = os.path.join(ROOT, "results")
 OUT = os.path.join(RESULTS, "figures", "print")
 # (module, figure size in inches = printed size): one panel 6.6 cm, two panels 7.4 cm.
-JOBS = [(f1_curve, (2.6, 1.85)), (f10_offer, (2.9, 1.9))]   # F9 crowds at this width: the original is used
+# The drawn size excludes ~0.7 cm of axis labels that bbox="tight" adds, so a figure placed at W cm is drawn W - 0.7
+# cm wide (2026-10-17: F1 is placed at 6.0 cm in the proceedings and 5.6 cm in the blind paper).
+JOBS = [(f1_curve, (2.09, 1.3), ""), (f1_curve, (1.93, 1.2), "blind"),
+        (f10_offer, (2.9, 1.9), "")]   # F9 crowds at this width: the original is used
 
 
 def main():
-    os.makedirs(OUT, exist_ok=True)
     saved = style.SINGLE
     try:
-        for module, size in JOBS:
+        for module, size, sub in JOBS:
+            out = os.path.join(OUT, sub)
+            os.makedirs(out, exist_ok=True)
             style.SINGLE = size
-            for path in module.make(RESULTS, OUT):
+            for path in module.make(RESULTS, out):
                 print(path)
     finally:
         style.SINGLE = saved

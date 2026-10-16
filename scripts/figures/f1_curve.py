@@ -22,13 +22,15 @@ def _draw(rows, xcol, xlabel, path, xticks=None, ylim=None):
         x = [p[0] for p in pts]
         style.errorbar(ax, x, [float(p[1]["mae"]) for p in pts], [float(p[1]["ci_lo"]) for p in pts],
                        [float(p[1]["ci_hi"]) for p in pts], m, style.METHOD_STYLE[m])
+    small = style.SINGLE[0] < 2.3                 # print-size copies (print_sizes.py); the frozen 3.35 in figure is unchanged
     ax.set_xlabel(xlabel)
-    ax.set_ylabel("Route-mean precipitation MAE (mm/h)")
+    ax.set_ylabel("MAE (mm/h)" if small else "Route-mean precipitation MAE (mm/h)")
     if xticks:
         ax.set_xticks(xticks)
     if ylim:
         ax.set_ylim(*ylim)
-    ax.legend(loc="lower center", bbox_to_anchor=(0.5, 1.02), ncol=4, frameon=False, handlelength=2.2)
+    ax.legend(loc="lower center", bbox_to_anchor=(0.5, 1.02), ncol=4, frameon=False,
+              handlelength=1.4 if small else 2.2, columnspacing=0.8 if small else 2.0, handletextpad=0.4 if small else 0.8)
     return style.save(fig, path)
 
 
