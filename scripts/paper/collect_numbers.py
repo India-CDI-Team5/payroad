@@ -521,6 +521,44 @@ def collect(root):
     add("상대 오차 감소(%): MAIN 예산 0.5, M1 → M2", lambda: rel(f1, "M1", "M2", subset="MAIN", rho=0.5))
     add("상대 오차 감소(%): 새 기간 예산 0.5, B1 → 지점 중앙(H-P)", lambda: rel(tmae, "B1", "H-P", rho=0.5))
     add("상대 오차 감소(%): 새 기간 예산 0.5, B1 → M2", lambda: rel(tmae, "B1", "M2", rho=0.5))
+
+    # Eighth round (2026-10-16, appended): shared spatial GP across concurrent requests (docs/shared-gp.md,
+    # docs/shared-gp-city.md). Test entries are list items, picked by their "test" name.
+    city, blr = "results/shared_gp_city/summary.json", "results/shared_gp/summary.json"
+
+    def test_field(rel, name, key):
+        tests, _ = src.json(rel, "tests")
+        i = next((i for i, t in enumerate(tests) if t["test"] == name), None)
+        if i is None:
+            raise Missing(f"{rel}:tests[{name}] (없음)")
+        return tests[i][key], f"{rel}:tests[{i}].{key}"
+
+    def ratio(a, b, label):
+        (x, xw), (y, yw) = a(), b()
+        return float(x) / float(y), f"{xw} / {yw} {label}".strip()
+
+    def red(a, b):
+        (x, xw), (y, yw) = a(), b()
+        return 100 * (1 - float(x) / float(y)), f"100 × (1 − {xw} / {yw})"
+
+    add("공유 GP 도시 재현: 하이데라바드 셀 수", lambda: src.json(city, "cells"))
+    add("공유 GP 도시 재현: 하이데라바드 경로 수", lambda: src.json(city, "routes"))
+    add("공유 GP 도시 재현: 검정 창 수(N = 20)", lambda: test_field(city, "R1", "windows"))
+    add("공유 GP 도시 재현: 전체 캐시 요청당 호출(N = 20)", lambda: src.json(city, "runs.N20_f0.5.full_calls"))
+    add("공유 GP 도시 재현: 맞춘 요청당 호출(N = 20, 0.5 × 전체 캐시)", lambda: src.json(city, "runs.N20_f0.5.target"))
+    for m in ["G", "N", "P"]:
+        add(f"공유 GP 도시 재현: MAE(mm/h), N = 20·0.5, {m}", lambda m=m: src.json(city, f"runs.N20_f0.5.{m}.mae"))
+    add("공유 GP 도시 재현: 상대 오차 감소(%), 이웃 규칙 → 공유 GP",
+        lambda: red(lambda: test_field(city, "R1", "G_mae"), lambda: test_field(city, "R1", "N_mae")))
+    add("공유 GP 도시 재현: 상대 오차 감소(%), 고정 예산 → 공유 GP",
+        lambda: red(lambda: test_field(city, "R2", "G_mae"), lambda: test_field(city, "R2", "P_mae")))
+    add("공유 GP 도시 재현: R1 Holm 보정 p", lambda: test_field(city, "R1", "p_holm"))
+    add("공유 GP 도시 재현: R2 Holm 보정 p", lambda: test_field(city, "R2", "p_holm"))
+    add("공유 GP 벵갈루루 새 기간: 상대 오차 감소(%), 이웃 규칙 → 공유 GP",
+        lambda: red(lambda: test_field(blr, "S1-b", "G_mae"), lambda: test_field(blr, "S1-b", "N_mae")))
+    add("공유 GP 벵갈루루 새 기간: 호출 비(공유 GP / 이웃 규칙)",
+        lambda: ratio(lambda: test_field(blr, "S1-b", "G_calls"), lambda: test_field(blr, "S1-b", "N_calls"), ""))
+    add("공유 GP: 공간 GP 길이 척도(km, 벵갈루루 학습 분할)", lambda: src.json(city, "spatial.ls_km"))
     return items
 
 
