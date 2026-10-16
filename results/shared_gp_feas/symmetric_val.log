@@ -1,0 +1,10 @@
+N=5 frac=0.5 target 1.476: G calls 1.476 MAE 0.0287  N calls 1.476 MAE 0.0774  P calls 1.476 MAE 0.0705
+N=10 frac=0.5 target 1.150: G calls 1.150 MAE 0.0307  N calls 1.150 MAE 0.0561  P calls 1.150 MAE 0.0794
+N=20 frac=0.25 target 0.402: G calls 0.402 MAE 0.0743  N calls 0.402 MAE 0.1061  P calls 0.614 MAE 0.1185
+N=20 frac=0.5 target 0.803: G calls 0.803 MAE 0.0306  N calls 0.803 MAE 0.0489  P calls 0.803 MAE 0.0864
+N=20 frac=0.75 target 1.205: G calls 1.205 MAE 0.0082  N calls 1.205 MAE 0.0327  P calls 1.205 MAE 0.0279
+N=50 frac=0.5 target 0.457: G calls 0.457 MAE 0.0252  N calls 0.457 MAE 0.0237  P calls 0.457 MAE 0.0748
+R1 G vs N: MAE 0.0306 vs 0.0489, calls 0.803 vs 0.803, mean diff -0.0180 [-0.0313, -0.0082], p_holm 2.57e-06 -> pass
+R2 G vs P: MAE 0.0306 vs 0.0864, calls 0.803 vs 0.803, mean diff -0.0411 [-0.0576, -0.0266], p_holm 3.35e-26 -> pass
+ALL PASSED: True
+EXIT 0
