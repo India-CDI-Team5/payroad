@@ -1,0 +1,24 @@
+N=5 frac=0.5 tuned: {"frac": 0.5, "full_calls": 3.01, "target": 1.4598499999999999, "G": 0.085, "G_val": [1.4313333333333333, 0.041316219841446025], "N": [13.0, 0.1], "N_val": [1.3246666666666667, 0.11665127290423873], "P": 0.4, "P_val": [1.4466666666666668, 0.09881569578932498], "over_target": false}
+  MAIN-test: F calls 2.955 MAE 0.0000  G calls 1.453 MAE 0.0397  N calls 1.363 MAE 0.0852  P calls 1.435 MAE 0.0950
+  temporal: F calls 2.966 MAE 0.0000  G calls 1.385 MAE 0.0298  N calls 1.312 MAE 0.0669  P calls 1.427 MAE 0.0621
+N=10 frac=0.5 tuned: {"frac": 0.5, "full_calls": 2.2853333333333334, "target": 1.1083866666666666, "G": 0.085, "G_val": [1.0823333333333334, 0.03468513566264938], "N": [13.0, 0.1], "N_val": [1.0716666666666668, 0.06087162341446366], "P": 0.35, "P_val": [1.0873333333333333, 0.07909373948824117], "over_target": false}
+  MAIN-test: F calls 2.288 MAE 0.0000  G calls 1.115 MAE 0.0366  N calls 1.158 MAE 0.0667  P calls 1.071 MAE 0.0931
+  temporal: F calls 2.299 MAE 0.0000  G calls 1.093 MAE 0.0310  N calls 1.146 MAE 0.0550  P calls 1.070 MAE 0.0742
+N=20 frac=0.25 tuned: {"frac": 0.25, "full_calls": 1.6415, "target": 0.39806375, "G": 0.17, "G_val": [0.3933333333333333, 0.08028738290514792], "N": [27.0, 1.0], "N_val": [0.34, 0.13354329155508213], "P": 0.05, "P_val": [0.6153333333333333, 0.1273156565219474], "over_target": true}
+  MAIN-test: F calls 1.617 MAE 0.0000  G calls 0.386 MAE 0.0771  N calls 0.354 MAE 0.1259  P calls 0.615 MAE 0.1028
+  temporal: F calls 1.612 MAE 0.0000  G calls 0.371 MAE 0.0625  N calls 0.306 MAE 0.1108  P calls 0.619 MAE 0.0888
+N=20 frac=0.5 tuned: {"frac": 0.5, "full_calls": 1.6415, "target": 0.7961275, "G": 0.09, "G_val": [0.7681666666666667, 0.034339196257983276], "N": [19.0, 0.2], "N_val": [0.6905, 0.05831436243385623], "P": 0.25, "P_val": [0.7708333333333334, 0.0891661624564419], "over_target": false}
+  MAIN-test: F calls 1.617 MAE 0.0000  G calls 0.752 MAE 0.0339  N calls 0.744 MAE 0.0482  P calls 0.773 MAE 0.0773
+  temporal: F calls 1.612 MAE 0.0000  G calls 0.753 MAE 0.0267  N calls 0.706 MAE 0.0399  P calls 0.775 MAE 0.0652
+N=20 frac=0.75 tuned: {"frac": 0.75, "full_calls": 1.6415, "target": 1.19419125, "G": 0.045, "G_val": [1.1596666666666666, 0.0120490935384529], "N": [19.0, 0.05], "N_val": [1.1451666666666667, 0.027896649080329954], "P": 0.55, "P_val": [1.1803333333333332, 0.033806190187668755], "over_target": false}
+  MAIN-test: F calls 1.617 MAE 0.0000  G calls 1.136 MAE 0.0112  N calls 1.169 MAE 0.0294  P calls 1.168 MAE 0.0252
+  temporal: F calls 1.612 MAE 0.0000  G calls 1.135 MAE 0.0094  N calls 1.143 MAE 0.0208  P calls 1.167 MAE 0.0227
+N=50 frac=0.5 tuned: {"frac": 0.5, "full_calls": 0.913, "target": 0.442805, "G": 0.09, "G_val": [0.42693333333333333, 0.027551309042843666], "N": [13.0, 0.2], "N_val": [0.4158, 0.03264310552812377], "P": 0.2, "P_val": [0.4334, 0.07868639979643563], "over_target": false}
+  MAIN-test: F calls 0.911 MAE 0.0000  G calls 0.441 MAE 0.0311  N calls 0.468 MAE 0.0338  P calls 0.435 MAE 0.0910
+  temporal: F calls 0.915 MAE 0.0000  G calls 0.412 MAE 0.0222  N calls 0.390 MAE 0.0290  P calls 0.433 MAE 0.0496
+S1-a G vs N on MAIN-test: MAE 0.0339 vs 0.0482, calls 0.752 vs 0.744, p 3.38e-08, p_holm None, supporting -> pass
+S2-a G vs P on MAIN-test: MAE 0.0339 vs 0.0773, calls 0.752 vs 0.773, p 5.38e-27, p_holm None, supporting -> pass
+S1-b G vs N on temporal: MAE 0.0267 vs 0.0399, calls 0.753 vs 0.706, p 8.06e-13, p_holm 8.060789172645618e-13, primary -> FAIL
+S2-b G vs P on temporal: MAE 0.0267 vs 0.0652, calls 0.753 vs 0.775, p 2.12e-21, p_holm 4.2331585288151e-21, primary -> pass
+ALL PASSED: False
+EXIT 0
