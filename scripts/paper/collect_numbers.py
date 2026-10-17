@@ -559,6 +559,18 @@ def collect(root):
     add("공유 GP 벵갈루루 새 기간: 호출 비(공유 GP / 이웃 규칙)",
         lambda: ratio(lambda: test_field(blr, "S1-b", "G_calls"), lambda: test_field(blr, "S1-b", "N_calls"), ""))
     add("공유 GP: 공간 GP 길이 척도(km, 벵갈루루 학습 분할)", lambda: src.json(city, "spatial.ls_km"))
+
+    # Ninth round (2026-10-17, appended): post-hoc description of calls per request along the whole Hyderabad stream
+    # (training.stream_calls; same pre-registered stream, checked by F's calls).
+    stream = "results/shared_gp_city/stream_calls.json"
+    for m, label in (("previous", "이전 방식(거리별 지점)"), ("cell", "셀 단위(공유 없음)"), ("F", "셀 단위 + 공유 캐시"),
+                     ("G", "공유 GP")):
+        add(f"요청 흐름(하이데라바드, 사후 기술): 요청당 호출, {label}", lambda m=m: src.json(stream, f"{m}.calls"))
+    add("요청 흐름: 이전 방식 MAE(mm/h)", lambda: src.json(stream, "previous.mae"))
+    add("요청 흐름: 호출 감소(%), 이전 방식 → 셀 단위 + 공유 캐시",
+        lambda: red(lambda: src.json(stream, "F.calls"), lambda: src.json(stream, "previous.calls")))
+    add("요청 흐름: 호출 감소(%), 이전 방식 → 공유 GP",
+        lambda: red(lambda: src.json(stream, "G.calls"), lambda: src.json(stream, "previous.calls")))
     return items
 
 

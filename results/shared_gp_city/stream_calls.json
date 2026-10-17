@@ -1,0 +1,31 @@
+{
+  "previous": {
+    "calls": 6.2411666666666665,
+    "mae": 0.026795131285682627
+  },
+  "cell": {
+    "calls": 3.9233333333333333,
+    "mae": 0.0
+  },
+  "trips": 6000,
+  "main_trips": 2651,
+  "F": {
+    "calls": 1.4621666666666666,
+    "mae": 0.0
+  },
+  "F_in_summary": 1.4621666666666666,
+  "stream_identical": true,
+  "G": {
+    "calls": 0.7310833333333333,
+    "mae": 0.03278965848764208
+  },
+  "N": {
+    "calls": 0.7310833333333333,
+    "mae": 0.051144289018776004
+  },
+  "P": {
+    "calls": 0.7310833333333333,
+    "mae": 0.09032201227115937
+  },
+  "note": "post hoc, descriptive; previous/cell/F counted on the pre-registered stream, G/N/P from summary.json"
+}
