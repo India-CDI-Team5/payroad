@@ -571,6 +571,16 @@ def collect(root):
         lambda: red(lambda: src.json(stream, "F.calls"), lambda: src.json(stream, "previous.calls")))
     add("요청 흐름: 호출 감소(%), 이전 방식 → 공유 GP",
         lambda: red(lambda: src.json(stream, "G.calls"), lambda: src.json(stream, "previous.calls")))
+
+    # Tenth round (2026-10-17, appended): pre-registered real-forecast check, docs/forecast-check.md.
+    fmae, ftest, fsum = "results/forecast_check/mae.csv", "results/forecast_check/tests.csv",         "results/forecast_check/summary.json"
+    add("예보 자료 확인: 표본 수", lambda: src.json(fsum, "n_samples"))
+    for m in ["B1", "M2", "H-P"]:
+        add(f"예보 자료 확인: 예산 비율 0.5 MAE, {m}", lambda m=m: src.cell(fmae, "mae", rho=0.5, method=m))
+    for t in ["F-1", "F-2"]:
+        add(f"예보 자료 확인: {t} Holm 보정 p", lambda t=t: src.cell(ftest, "p_holm", test=t))
+    add("예보 자료 확인: 상대 오차 감소(%), B1 → 지점 중앙(H-P)", lambda: rel(fmae, "B1", "H-P", rho=0.5))
+    add("예보 자료 확인: 상대 오차 감소(%), B1 → M2", lambda: rel(fmae, "B1", "M2", rho=0.5))
     return items
 
 
