@@ -581,6 +581,7 @@ def collect(root):
         add(f"예보 자료 확인: {t} Holm 보정 p", lambda t=t: src.cell(ftest, "p_holm", test=t))
     add("예보 자료 확인: 상대 오차 감소(%), B1 → 지점 중앙(H-P)", lambda: rel(fmae, "B1", "H-P", rho=0.5))
     add("예보 자료 확인: 상대 오차 감소(%), B1 → M2", lambda: rel(fmae, "B1", "M2", rho=0.5))
+    add("시간 보류: 보류 경로(학습에 없는 경로) 표본 수", lambda: src.json(tsum, "n_holdout_route_samples"))
     return items
 
 
