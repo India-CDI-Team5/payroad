@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>PayRoad 포스터</title>
+<style>
+  @page { size: 788mm 1091mm; margin: 0; }
+  :root {
+    --ink: #16202a; --muted: #4a5562; --line: #c9d1d9; --soft: #f3f5f7;
+    --navy: #13294b; --navy-2: #24467a; --m2: #0072B2; --mid: #C2408F; --mid-soft: #fdf3f8;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #fff; }
+  body {
+    width: 788mm; height: 1091mm; overflow: hidden;
+    font-family: 'Noto Sans KR', 'Malgun Gothic', sans-serif; color: var(--ink);
+    font-size: 8.8mm; line-height: 1.5; letter-spacing: -0.015em; word-break: keep-all;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .poster { width: 788mm; height: 1091mm; padding: 16mm 20mm 16mm; display: flex; flex-direction: column; }
+
+  /* header band ------------------------------------------------------- */
+  header {
+    background: var(--navy); color: #fff; border-radius: 4mm; padding: 11mm 14mm 10mm;
+    border-bottom: 3mm solid var(--mid);
+  }
+  h1 { margin: 0; font-size: 26mm; line-height: 1.22; font-weight: 800; letter-spacing: -0.035em; }
+  .en { margin: 3.5mm 0 0; font-size: 9mm; color: #c9d6ea; font-weight: 500; letter-spacing: -0.005em; }
+  .byline { display: flex; align-items: baseline; gap: 14mm; margin-top: 6mm; }
+  .authors { font-size: 25mm; font-weight: 700; letter-spacing: -0.03em; }
+  .affil { font-size: 25mm; font-weight: 400; color: #dbe4f1; letter-spacing: -0.03em; }
+
+  /* columns and boxes -------------------------------------------------- */
+  .cols { flex: 1; display: grid; grid-template-columns: repeat(3, 240mm); justify-content: space-between;
+          margin-top: 12mm; min-height: 0; }
+  .col { display: flex; flex-direction: column; gap: 10mm; min-height: 0; }
+  /* boxes share the column's spare height, so every column starts and ends on the same lines */
+  section { flex: 1 1 auto; border: 0.5mm solid var(--line); border-radius: 2.5mm; overflow: hidden; background: #fff; }
+  h2 {
+    margin: 0; padding: 3mm 5.5mm 3.2mm; background: var(--navy); color: #fff;
+    font-size: 14mm; line-height: 1.2; font-weight: 700; letter-spacing: -0.03em;
+    display: flex; align-items: baseline; gap: 3mm;
+  }
+  h2 .rq { margin-left: auto; font-size: 8mm; font-weight: 500; color: #c9d6ea; letter-spacing: 0; }
+  .body { padding: 5mm 5.5mm 4.5mm; }
+  p { margin: 0 0 3mm; }
+  ul { margin: 0 0 3mm; padding-left: 6.5mm; }
+  li { margin: 0 0 1.8mm; }
+  li::marker { color: var(--navy-2); }
+  strong { font-weight: 800; }
+  .body > :last-child { margin-bottom: 0; }
+  .fig { margin: 3mm 0; }
+  .fig svg { display: block; width: 100%; height: auto; }
+  .cap { font-size: 7.2mm; line-height: 1.35; color: var(--muted); margin: -1mm 0 3mm; }
+
+  .rqs { list-style: none; padding: 3.5mm 4.5mm; margin: 3mm 0 0; background: var(--soft); border-radius: 2mm; display: grid; gap: 1.6mm; }
+  .rqs li { display: grid; grid-template-columns: 21mm 1fr; margin: 0; }
+  .rqs b { color: var(--navy-2); font-weight: 800; }
+
+  .steps { list-style: none; padding: 0; margin: 0 0 4mm; counter-reset: s; display: grid; gap: 2.4mm; }
+  .steps li { counter-increment: s; display: grid; grid-template-columns: 10mm 1fr; margin: 0; }
+  .steps li::before {
+    content: counter(s); width: 7.5mm; height: 7.5mm; margin-top: 1.8mm; border-radius: 50%; background: var(--navy-2);
+    color: #fff; font-size: 5.4mm; font-weight: 800; display: grid; place-items: center;
+  }
+  .formula {
+    background: var(--soft); border-left: 1.6mm solid var(--navy-2); padding: 3.5mm 5mm; margin: 0 0 3mm;
+    font-size: 8.4mm; line-height: 1.55;
+  }
+  .formula i { font-family: 'Noto Serif KR', serif; font-style: italic; }
+
+  table.t2 { width: 100%; border-collapse: collapse; font-size: 7.6mm; margin: 0 0 1mm; }
+  table.t2 th, table.t2 td { padding: 1.2mm 1.6mm; text-align: right; border-bottom: 0.4mm solid var(--line); }
+  table.t2 th:first-child, table.t2 td:first-child { text-align: left; }
+  table.t2 thead th { color: var(--muted); font-weight: 700; border-bottom: 0.7mm solid var(--ink); }
+  table.t2 tr.em td { font-weight: 800; color: var(--navy-2); }
+
+  section.hl { border: 0.9mm solid var(--mid); background: var(--mid-soft); }
+  section.hl h2 { background: var(--mid); }
+  section.hl h2 .rq { color: #fde3f0; }
+  .verdict { background: #fff; border-radius: 2mm; padding: 3mm 4.5mm; font-size: 8mm; line-height: 1.45; border-left: 1.6mm solid var(--mid); }
+
+  .two { display: grid; grid-template-columns: 112mm 112mm; justify-content: space-between; margin: 1mm 0 3mm; }
+  .two .fig { margin: 0; }
+
+  .concl { list-style: none; padding: 0; margin: 0 0 3mm; display: grid; gap: 2mm; }
+  .concl li { display: grid; grid-template-columns: 21mm 1fr; margin: 0; }
+  .concl b { color: var(--navy-2); font-weight: 800; }
+  .future { font-size: 7.6mm; color: var(--muted); margin: 0; }
+  .refs { font-size: 7mm; line-height: 1.35; color: var(--muted); margin: 0; padding-left: 9mm; }
+  .refs li { margin: 0 0 1mm; }
+  .repo { font-size: 7.4mm; font-weight: 700; color: var(--navy-2); margin-top: 2.5mm; }
+  /* repo QR in the empty lower-right of the title band: absolutely placed so the band keeps its height */
+  header { position: relative; }
+  .qr { position: absolute; right: 14mm; bottom: 10mm; width: 46mm; }
+  .qr svg { display: block; width: 100%; height: auto; border-radius: 1.5mm; }
+</style>
+</head>
+<body>
+<div class="poster">
+
+<header>
+  <h1>역경매 승차 호출의 기상 할증을 위한 조회 위치 선정과<br>요청 간 공유 가우시안 프로세스 기반 API 호출 절감</h1>
+  <p class="en">Reducing Weather-API Calls for Reverse-Auction Ride Fares via Query Placement and a Shared Gaussian Process</p>
+  <div class="byline">
+    <span class="authors">장원준 · 권구태</span>
+    <span class="affil">경북대학교 컴퓨터학부</span>
+  </div>
+  <div class="qr"><!--fig:qr--></div>
+</header>
+
+<div class="cols">
+
+<!-- ===================================================== column 1 -->
+<div class="col">
+  <section>
+    <h2>1. 서론</h2>
+    <div class="body">
+      <ul>
+        <li>기상 할증에는 출발지 한 점이 아니라 <strong>경로 전체의 강수</strong>가 필요하다.</li>
+        <li>기상 API는 <strong>조회 좌표마다 호출 1회 이상</strong>으로 센다. 경로 위 지점을 균등 간격으로 조회하면 같은 셀을 중복 호출하고 일부 셀은 놓친다.</li>
+      </ul>
+      <div class="fig"><!--fig:concept--></div>
+      <p class="cap">개념도(가상 경로): 같은 경로를 지점으로 조회하면 셀을 중복·누락하고, 셀 단위로 조회하면 빠짐없이 한 번씩 조회한다.</p>
+      <ul class="rqs">
+        <li><b>RQ1</b><span>오차를 좌우하는 것은 보간인가, 조회 위치인가?</span></li>
+        <li><b>RQ2</b><span>GP 분산 기반 배치는 호출을 얼마나 줄이는가?</span></li>
+        <li><b>RQ3</b><span>그 이득은 어디서 오며, 새 자료에서도 유지되는가?</span></li>
+        <li><b>RQ4</b><span>동시 요청 사이에서도 GP가 단순 규칙보다 나은가?</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2>2. 제안 시스템</h2>
+    <div class="body">
+      <div class="fig">
+        <svg viewBox="0 0 228 128" xmlns="http://www.w3.org/2000/svg" font-family="Noto Sans KR, Malgun Gothic, sans-serif">
+          <defs>
+            <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="#4a5562"/>
+            </marker>
+          </defs>
+          <g font-size="7" fill="#16202a">
+            <rect x="0.5" y="26" width="36" height="34" rx="2.5" fill="#f3f5f7" stroke="#9aa5b1" stroke-width="0.6"/>
+            <text x="18.5" y="40" text-anchor="middle" font-weight="800">웹 화면</text>
+            <text x="18.5" y="51" text-anchor="middle" fill="#4a5562">승객·기사</text>
+            <rect x="0.5" y="88" width="36" height="34" rx="2.5" fill="#fff" stroke="#9aa5b1" stroke-width="0.6" stroke-dasharray="2 1.4"/>
+            <text x="18.5" y="102" text-anchor="middle" font-weight="800">실험 러너</text>
+            <text x="18.5" y="113" text-anchor="middle" fill="#4a5562">가상 시계</text>
+            <rect x="60" y="8" width="76" height="62" rx="2.5" fill="#fff" stroke="#13294b" stroke-width="0.9"/>
+            <text x="98" y="21" text-anchor="middle" font-weight="800" fill="#13294b">흥정 서버</text>
+            <text x="98" y="31" text-anchor="middle" fill="#4a5562">Spring Boot · 무상태</text>
+            <text x="65" y="45">· 거래 명령·접속</text>
+            <text x="65" y="55">· 기준가 호출(폴백)</text>
+            <text x="65" y="65">· 1초 주기 만료 정리</text>
+            <rect x="60" y="88" width="76" height="34" rx="2.5" fill="#e8f1f8" stroke="#0072B2" stroke-width="0.9"/>
+            <text x="98" y="101" text-anchor="middle" font-weight="800" fill="#0072B2">Redis 7.4</text>
+            <text x="98" y="113" text-anchor="middle">규칙 R1~R13 (Lua)</text>
+            <rect x="150" y="8" width="77.5" height="62" rx="2.5" fill="#fff" stroke="#13294b" stroke-width="0.9"/>
+            <text x="188.75" y="21" text-anchor="middle" font-weight="800" fill="#13294b">기준가 서비스</text>
+            <text x="188.75" y="31" text-anchor="middle" fill="#4a5562">FastAPI /quote</text>
+            <text x="155" y="45">· 경로 → 셀 선정</text>
+            <text x="155" y="55">· 예보 k회 → GP</text>
+            <text x="155" y="65">· 할증 β(r, s)</text>
+            <rect x="150" y="88" width="77.5" height="34" rx="2.5" fill="#f3f5f7" stroke="#9aa5b1" stroke-width="0.6"/>
+            <text x="188.75" y="101" text-anchor="middle" font-weight="800">외부 API</text>
+            <text x="188.75" y="113" text-anchor="middle" fill="#4a5562">경로 · Open-Meteo</text>
+          </g>
+          <g stroke="#4a5562" stroke-width="0.8" fill="none">
+            <line x1="37.5" y1="43" x2="59" y2="43" marker-start="url(#ah)" marker-end="url(#ah)"/>
+            <line x1="137" y1="39" x2="149" y2="39" marker-end="url(#ah)"/>
+            <line x1="98" y1="71" x2="98" y2="87" marker-end="url(#ah)"/>
+            <line x1="188.75" y1="71" x2="188.75" y2="87" marker-end="url(#ah)"/>
+            <line x1="37.5" y1="105" x2="59" y2="105" marker-end="url(#ah)" stroke-dasharray="2 1.4"/>
+          </g>
+          <g font-size="7" fill="#4a5562">
+            <text x="48" y="37" text-anchor="middle">REST</text>
+            <text x="48" y="53" text-anchor="middle">STOMP</text>
+            <text x="48" y="99" text-anchor="middle">같은</text>
+            <text x="48" y="115" text-anchor="middle">Lua</text>
+          </g>
+        </svg>
+      </div>
+      <ul>
+        <li>승객이 거래를 열면 여러 기사가 <strong>동시에 호가</strong>하고, 승객은 가격과 픽업 시간을 보고 고른다(역경매).</li>
+        <li>흥정 규칙 13개는 Redis Lua 스크립트 한 벌에서 <strong>원자적으로</strong> 실행된다. 예: 양보 방향으로만 가격 변경, 동시 수락 중 하나만 체결.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2>3. 경로 기상 기준가와 조회 위치</h2>
+    <div class="body">
+      <ol class="steps">
+        <li><span>경로가 지나는 기상 격자 셀 <strong>U개</strong>를 찾는다(9km 격자).</span></li>
+        <li><span>그중 <strong>k = ⌈U/2⌉개 셀만</strong> 골라 예보를 조회한다.</span></li>
+        <li><span>나머지는 <strong>GP로 보간</strong>해 경로 평균 강수 r과 불확실성 s를 얻는다.</span></li>
+      </ol>
+      <div class="formula">
+        기준가 <i>P</i> = ₹18 × <i>d</i> × <i>S</i> × β(<i>r</i>, <i>s</i>)<br>
+        β = 1 + min(max(<i>r</i> − 0.5<i>s</i>, 0) × 0.15, 0.5)
+      </div>
+      <p class="cap">d 경로 거리(km), S 수급 할증. 예(데모): 경로 강수 1.020mm/h, 불확실성을 반영한 할증 ×1.123. 상수와 평가 계획은 결과를 보기 전에 동결했다.</p>
+      <p><strong>조회 위치 규칙</strong>(같은 k개): B1은 균등 간격 지점, M2는 절반은 균등 셀·나머지는 지점 사후 분산 합이 가장 큰 셀, Mid는 경로를 k등분한 각 구간의 가운데 셀.</p>
+      <div class="fig"><!--fig:schematic--></div>
+      <p class="cap" style="margin:0">k = 4의 예(개념도). ×는 이미 조회한 셀의 재조회.</p>
+    </div>
+  </section>
+</div>
+
+<!-- ===================================================== column 2 -->
+<div class="col">
+  <section>
+    <h2>4. 조회 위치가 오차를 정한다<span class="rq">RQ1 · RQ2</span></h2>
+    <div class="body">
+      <table class="t2">
+        <thead><tr><th>보류 경로 100개</th><th>경로당 호출</th><th>MAE</th><th>절감</th></tr></thead>
+        <tbody>
+          <tr><td>이전 방식(거리별 4~12개 지점)</td><td>6.69</td><td>0.024</td><td>–</td></tr>
+          <tr class="em"><td>지나는 셀 모두 1회</td><td>4.13</td><td>0</td><td>38.3%</td></tr>
+          <tr><td>M2 (k = ⌈U/2⌉)</td><td>2.38</td><td>0.062</td><td>64.4%</td></tr>
+        </tbody>
+      </table>
+      <div class="fig"><!--fig:curve--></div>
+      <ul>
+        <li>같은 위치에서 보간만 GP로 바꾸면 차이가 유의하지 않다(k/U = 0.5, Holm p = 0.428). 오차는 <strong>조회 위치</strong>가 좌우한다.</li>
+        <li>GP 분산으로 고른 M2: B1 대비 같은 호출에서 오차 <strong>−34%</strong>, 같은 정확도에서 호출 <strong>−26.3%</strong>.</li>
+      </ul>
+      <p class="cap" style="margin:0">벵갈루루 경로 500개, 2022.6~2025.11, 우천 테스트 491개. p = 0.428은 사전 등록 검정, M2 대 B1은 사후 검정(Holm p &lt; 10⁻⁶).</p>
+    </div>
+  </section>
+
+  <section class="hl">
+    <h2>5. Mid 규칙과 실시간 검증<span class="rq">RQ3</span></h2>
+    <div class="body">
+      <p>위치를 미리 정하는 일괄 조회에서 고정한 GP의 사후 분산은 관측값과 무관한 <strong>기하 점수</strong>다. 이 분석에서 나온 <strong>계통 표집(Mid)</strong>이 M2보다 나았다(사후 비교).</p>
+      <p>이를 확인하려고 서비스 조건 그대로 <strong>출발 시각의 최신 예보</strong>를 2026.10.18~11.17에 매시 수집했다(PC가 꺼진 시각 제외). 검정은 수집 전에 고정했고, 평가는 한 번만 했다.</p>
+      <div class="fig"><!--fig:realtime_timeline--></div>
+      <div class="fig"><!--fig:three_conditions--></div>
+      <div class="verdict">사전 등록 검정 모두 지지: <strong>Mid &lt; M2 &lt; B1</strong><br>(Holm p = 3.5×10⁻⁴, 1.2×10⁻¹¹). 세 자료에서 순서가 같다.</div>
+    </div>
+  </section>
+</div>
+
+<!-- ===================================================== column 3 -->
+<div class="col">
+  <section>
+    <h2>6. 요청 간 공유 GP<span class="rq">RQ4 · 시뮬레이션</span></h2>
+    <div class="body">
+      <p>다른 요청이 캐시한 셀 값을 2차원 GP로 <strong>빌려 써서</strong> 새 요청의 조회를 줄인다. 벵갈루루 검정은 같은 호출 조건에 실패(호출 1.07배)해, 규칙을 고정하고 처음 쓰는 도시(하이데라바드)에서 호출 수를 맞춰 재검정했다.</p>
+      <div class="fig"><!--fig:shared_gp--></div>
+      <p class="cap">같은 호출에서 공유 GP의 오차가 이웃 규칙보다 36%, 고정 예산보다 64% 작다(Holm p &lt; 10⁻⁸).</p>
+      <div class="fig"><!--fig:stream_calls--></div>
+      <p class="cap" style="margin:0">요청당 호출(전체 요청 흐름, 사후 집계): 이전 방식보다 88% 적다.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>7. 흥정 · 담합 탐지 검증</h2>
+    <div class="body">
+      <table class="t2">
+        <thead><tr><th>봇 시뮬레이션(C1)</th><th>체결률</th><th>체결 시간 중앙값</th></tr></thead>
+        <tbody>
+          <tr class="em"><td>역경매 흥정</td><td>0.77</td><td>39.7초</td></tr>
+          <tr><td>고정가</td><td>1.00</td><td>3.6초</td></tr>
+        </tbody>
+      </table>
+      <div class="two">
+        <div class="fig"><!--fig:markup--></div>
+        <div class="fig"><!--fig:collusion--></div>
+      </div>
+      <p class="cap">왼쪽: 봇 승객의 첫 오퍼별 마크업(0.80은 사전 등록 실험, 0.90·1.00은 사후 분석). 오른쪽: 미학습 담합 S4 탐지.</p>
+      <ul>
+        <li>첫 오퍼가 봇 기사의 유보가격 이상이면 거래 90~99%가 첫 오퍼 수락으로 끝난다(사후). <strong>기준가의 정확도가 곧 가격의 정확도</strong>다.</li>
+        <li>미학습 담합 S4: PR-AUC <strong>0.916</strong>(단일 규칙 0.827). 피처 고정 뒤 설계한 S5에서는 둘 다 0.999.</li>
+        <li>단일 서버 동시 수락 시험 200회 × 2에서 <strong>이중 체결 0건</strong>.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2>8. 결론</h2>
+    <div class="body">
+      <ul class="concl">
+        <li><b>RQ1</b><span>셀 단위 조회로 호출 <strong>−38.3%</strong>. 오차는 조회 위치가 정한다.</span></li>
+        <li><b>RQ2</b><span>M2: B1 대비 오차 −34%(같은 호출), 호출 −26.3%(같은 정확도).</span></li>
+        <li><b>RQ3</b><span>Mid가 새 기간·예보·<strong>실시간 예보</strong>에서 모두 우수.</span></li>
+        <li><b>RQ4</b><span>공유 GP: 같은 호출에서 이웃 규칙 대비 오차 −36%, 이전 방식 대비 호출 <strong>−88%</strong>(오차 0.027→0.033).</span></li>
+      </ul>
+      <p class="future"><strong>한계</strong> 참값은 분석·예보 자료의 전수 조회(관측 아님), 배치 실험은 단일 도시, 요청 흐름·봇·담합은 시뮬레이션.<br><strong>향후</strong> Mid·공유 GP의 서비스 적용, 실사용·다중 서버 검증.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>참고문헌</h2>
+    <div class="body">
+      <ol class="refs">
+        <li>A. Krause et al., J. Mach. Learn. Res., vol. 9, 2008.</li>
+        <li>C. E. Rasmussen, C. K. I. Williams, Gaussian Processes for Machine Learning, MIT Press, 2006.</li>
+        <li>W. G. Cochran, Sampling Techniques, 3rd ed., Wiley, 1977.</li>
+        <li>P. Zippenfenig, Open-Meteo.com Weather API, Zenodo, 2024.</li>
+      </ol>
+      <div class="repo">github.com/India-CDI-Team5/payroad</div>
+    </div>
+  </section>
+</div>
+
+</div>
+</div>
+</body>
+</html>
